@@ -1,0 +1,71 @@
+<ui-view>
+    <div class='row'>
+        <div class="col-sm-12 col-md-12 col-lg-12">
+            <div class='pull-right'>
+                <a ui-sref="app.roles.create" class='btn btn-primary'>Nuevo Rol</a>
+            </div>
+        </div>
+    </div>
+
+    <br>
+
+    <div class='row'>
+        <article class="col-sm-12 col-md-12 col-lg-12">
+            <div class="jarviswidget jarviswidget-color-blueDark" id="roles-table">
+                <header>
+                    <span class="widget-icon"> <i class="fa fa-table"></i> </span>
+                    <h2>Roles</h2>
+                </header>
+
+                <div>
+                    <div class="widget-body">
+                        <table class='table table-bordered'>
+                            <thead>
+                                <tr>
+                                    <th>Nombre</th>
+                                    <th>Nombre publico o legible</th>
+                                    <th>Permisos</th>
+                                    <th class='action-column'>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td> <input ng-model="vm.search.name" ng-blur="vm.filter()" ng-enter="vm.filter()" type="text" class="form-control" placeholder="nombre"></input> </td>
+                                    <td> <input ng-model="vm.search.label" ng-blur="vm.filter()" ng-enter="vm.filter()" type="text" class="form-control" placeholder="label"></input> </td>
+                                    <td> <input ng-model="vm.search.permissions" ng-blur="vm.filter()" ng-enter="vm.filter()" type="text" class="form-control" placeholder="permiso"></input> </td>
+                                    <td></td>
+                                </tr>
+                                <tr ng-repeat="role in vm.roles" ng-hide="vm.reload">
+                                    <td>{{ ::role.name }}</td>
+                                    <td>{{ ::role.label }}</td>
+                                    <td>
+                                        <span ng-repeat="permission in role.permissions">
+                                            <span class="label label-primary">{{ ::permission.label }}</span>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <a ui-sref="app.roles.edit({id: role.id})" class="btn btn-warning btn-xs"><i class='fa fa-pencil'></i></a>
+                                        <a ng-click="vm.destroy(role.id, $index)" class='btn btn-danger btn-xs'><i class='fa fa-trash'></i></a>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <div ng-if='vm.reload' class='text-center'>
+                            <i class="fa fa-2x fa-spinner fa-spin"></i>
+                        </div>
+
+                        <div ng-hide="vm.reload" ng-if="vm.roles | isEmpty" class='text-center'>
+                            Sin resultados
+                        </div>
+
+                        <div ng-hide="vm.reload" ng-if="! (vm.roles | isEmpty)" class='text-center'>
+                            <ul uib-pagination items-per-page="vm.itemsPerPage" max-size="10" boundary-link-numbers="true" rotate="false" force-ellipses="true" total-items="vm.totalItems" ng-model="vm.search.page" ng-change="vm.filter()"></ul>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </article>
+    </div>
+</ui-view>

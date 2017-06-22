@@ -1,0 +1,91 @@
+<!--Inicio ArchivoModal-->
+<div class="modal-body">
+
+<div class='row'>
+    <div class="col-sm-12 col-md-12 col-lg-12">
+        <div class="jarviswidget jarviswidget-color-bluegob" id="archivocarga-form">
+            <header>
+                <span class="widget-icon"> <i class="fa fa-plus"></i> </span>
+                <h2>{{ vm.action }} Archivo al Sistema</h2>
+            </header>
+
+            <div>
+                <div class="widget-body no-padding all-background">
+                    <br>
+                    <form class="form-horizontal" role="form" method="POST" novalidate>
+
+                        <div class="form-group" ng-class="{'has-error': vm.hasError('tipo_archivo')}">
+                            <label class="col-md-4 control-label">Tipo Archivo</label>
+
+                            <div class="col-md-6">
+                                <ui-select ng-model="vm.data.tipo_archivo">
+                                    <ui-select-match placeholder="Tipo de Archivo">
+                                        {{$select.selected.nombre}}
+                                    </ui-select-match>
+                                    <ui-select-choices repeat="tipo.id as tipo in vm.tipos_archivo | filter: $select.search">
+                                        <span ng-bind-html="tipo.nombre | highlight: $select.search"></span>
+                                    </ui-select-choices>
+                                </ui-select>
+
+                                <span ng-if="vm.hasError('tipo_archivo')" class="help-block">
+                                    <strong>{{ vm.errors.tipo_archivo[0] }}</strong>
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="form-group" ng-class="{'has-error': vm.hasError('mes') || vm.hasError('anho')}">
+                            <label class="col-md-4 control-label">Fecha Asociada</label>
+                            <div class="col-md-6">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <input class="form-control" type="number" placeholder="Mes" min="1" max="12" ng-model="vm.data.mes">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <input class="form-control" type="number" placeholder="Año" min="1" max="9999" ng-model="vm.data.anho">
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <span ng-if="vm.hasError('mes') || vm.hasError('anho')" class="help-block">
+                                            <div ng-if="vm.hasError('mes')">
+                                                <strong>{{ vm.errors.mes[0] }}</strong>
+                                            </div>
+                                            <div ng-if="vm.hasError('anho')">
+                                                <strong>{{ vm.errors.anho[0] }}</strong>
+                                            </div>
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group" ng-class="{'has-error': vm.hasError('file')}">
+                            <label class="col-md-4 control-label">Archivo</label>
+
+                            <div class="col-md-6">
+                                <input type="file" ngf-select class="form-control" ng-model="vm.data.file" name="file" ngf-model-invalid="errorFile" accept=".csv">
+
+                                <span ng-if="vm.hasError('file')" class="help-block">
+                                    <strong>{{ vm.errors.file[0] }}</strong>
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <div class="col-md-6 col-md-offset-4">
+                                <button ng-class="{'disabled': vm.formIsSubmit }" type="button" class="btn btn-default" ng-click="vm.cancelar()">Cancelar</button>
+                                <button ng-class="{'disabled': vm.formIsSubmit }" ng-click="vm.submitForm()" class="btn btn-primary" data-dismiss="modal">
+                                    <i ng-class="{'fa-user': !vm.formIsSubmit, 'fa-spinner fa-spin': vm.formIsSubmit }" class="fa fa-btn "></i> {{ vm.action }}
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</div>
+
+<!--Fin modal-->

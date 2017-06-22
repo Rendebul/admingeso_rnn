@@ -1,0 +1,60 @@
+<!--Inicio ArchivoModal-->
+<div class="modal-body">
+
+<div class='row'>
+    <div class="col-sm-12 col-md-12 col-lg-12">
+        <div class="jarviswidget jarviswidget-color-bluegob" id="archivocarga-show">
+            <header>
+                <span class="widget-icon"> <i class="fa fa-eye"></i></span>
+                <h2>Detalles de carga de archivo</h2>
+            </header>
+
+            <div>
+                <div class="widget-body no-padding all-background">
+                  <table class="table table-bordered">
+                    <tr><td>Tipo archivo</td><td>{{vm.archivo.tipo_archivo}}</td></tr>
+                    <tr><td>Creador</td><td>{{vm.archivo.user.name}}</td></tr>
+                    <tr><td>Fecha asociada</td><td>{{vm.archivo.fecha_asociada}}</td></tr>
+                    <tr><td>Estado carga</td><td><span class="label" ng-class="vm.labelClass(vm.archivo.estado_carga)">{{vm.archivo.estado_carga}}</span></td></tr>
+                    <tr><td>Mensaje carga</td><td>{{vm.archivo.mensaje}}</td></tr>
+                    <tr><td>Activo</td><td>{{vm.archivo.es_registro_valido ? 'Si' : 'No'}}</td></tr>
+                    <tr><td>Registros Leidos</td><td>{{vm.archivo.registros_leidos}}</td></tr>
+                    <tr ng-if="(vm.archivo.cantidadErrores > 0)">
+                        <td>Registros con errores</td>
+                        <td>{{vm.archivo.cantidadErrores}}</td>
+                    </tr>
+                    <tr><td>Fecha creación</td><td>{{vm.archivo.created_at}}</td></tr>
+                  </table>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="jarviswidget jarviswidget-color-bluegob" id="archivocarga-errores-show" ng-if="(vm.archivo.cantidadErrores > 0)">
+            <header>
+                <span class="widget-icon"> <i class="fa fa-exclamation-triangle"></i></span>
+                <h2>Errores encontrados</h2>
+            </header>
+            <div>
+            <div class="widget-body no-padding all-background">
+                <table ng-hide="vm.reloadErrors" class="table table-bordered" ng-repeat="error in vm.errores">
+                    <tr ng-repeat="mensaje in error.mensajes">
+                        <td><span style="font-weight: bold">Línea {{error.linea}}:</span> {{mensaje.mensaje}}</td>
+                    </tr>
+                </table>
+                <div ng-if='vm.reloadErrors' class='text-center'>
+                    <i class="fa fa-2x fa-spinner fa-spin"></i>
+                </div>
+            </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-12 col-md-12 col-lg-12">
+        <a ng-click="vm.cerrar()" class="btn btn-primary">Cerrar</a>
+    </div>
+
+</div>
+
+</div>
+<!--Fin modal-->

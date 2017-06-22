@@ -1,0 +1,117 @@
+<div class='row'>
+    <div class="col-sm-12 col-md-12 col-lg-12">
+        <div class="jarviswidget jarviswidget-color-blueDark" id="user-form">
+            <header>
+                <span class="widget-icon"> <i class="fa" ng-class="{'fa-plus': vm.action == 'Crear', 'fa-edit': vm.action == 'Editar'}"></i> </span>
+                <h2>{{ vm.action }} Usuario</h2>
+            </header>
+
+            <div>
+                <div class="widget-body">
+                    <form class="form-horizontal" role="form" method="POST" novalidate>
+
+                        <div class="form-group" ng-class="{'has-error': vm.hasError('name')}">
+                            <label class="col-md-4 control-label">Name</label>
+
+                            <div class="col-md-6">
+                                <input type="text" class="form-control" ng-model="vm.data.name">
+
+                                <span ng-if="vm.hasError('name')" class="help-block">
+                                    <strong>{{ vm.errors.name[0] }}</strong>
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="form-group" ng-class="{'has-error': vm.hasError('email')}">
+                            <label class="col-md-4 control-label">E-Mail</label>
+
+                            <div class="col-md-6">
+                                <input type="text" class="form-control" ng-model="vm.data.email">
+
+                                <span ng-if="vm.hasError('email')" class="help-block">
+                                    <strong>{{ vm.errors.email[0] }}</strong>
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="form-group" ng-class="{'has-error': vm.hasError('cargo')}">
+                            <label class="col-md-4 control-label">Cargo</label>
+
+                            <div class="col-md-6">
+                                <input type="text" class="form-control" ng-model="vm.data.cargo">
+
+                                <span ng-if="vm.hasError('cargo')" class="help-block">
+                                    <strong>{{ vm.errors.cargo[0] }}</strong>
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="form-group" ng-class="{'has-error': vm.hasError('telefono')}">
+                            <label class="col-md-4 control-label">Telefono</label>
+
+                            <div class="col-md-6">
+                                <input type="text" class="form-control" ng-model="vm.data.telefono">
+
+                                <span ng-if="vm.hasError('telefono')" class="help-block">
+                                    <strong>{{ vm.errors.telefono[0] }}</strong>
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="form-group" ng-class="{'has-error': vm.hasError('password')}">
+                            <label class="col-md-4 control-label">Password</label>
+
+                            <div class="col-md-6">
+                                <input type="password" class="form-control" ng-model="vm.data.password">
+
+                                <span ng-if="vm.hasError('password')" class="help-block">
+                                    <strong>{{ vm.errors.password[0] }}</strong>
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="form-group" ng-class="{'has-error': vm.hasError('password_confirmation')}">
+                            <label class="col-md-4 control-label">Confirmar Password</label>
+
+                            <div class="col-md-6">
+                                <input type="password" class="form-control" ng-model="vm.data.password_confirmation">
+
+                                <span ng-if="vm.hasError('password_confirmation')" class="help-block">
+                                    <strong>{{ vm.errors.password_confirmation[0] }}</strong>
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="form-group" ng-class="{'has-error': vm.hasError('roles')}">
+                            <label class="col-md-4 control-label">Roles</label>
+
+                            <div class="col-md-6">
+
+                                <ui-select multiple ng-model="vm.data.roles">
+                                    <ui-select-match placeholder="Selecciona roles...">
+                                        {{$item.label}}
+                                    </ui-select-match>
+                                    <ui-select-choices repeat="role.name as role in (vm.roles | filter: $select.search) track by $index">
+                                        <span ng-bind="role.label"></span>
+                                    </ui-select-choices>
+                                </ui-select>
+
+                                <span ng-if="vm.hasError('roles')" class="help-block">
+                                    <strong>{{ vm.errors.roles[0] }}</strong>
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <div class="col-md-6 col-md-offset-4">
+                                <button ng-click="vm.submitForm()" class="btn btn-primary">
+                                    <i ng-class="{'fa-user': !vm.formIsSubmit, 'fa-spinner fa-spin': vm.formIsSubmit }" class="fa fa-btn "></i> {{ vm.action }}
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

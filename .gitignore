@@ -1,0 +1,11 @@
+/node_modules
+/archivo_cargas
+/public/storage
+/public/css
+/public/js
+/vendor
+/.idea
+Homestead.json
+Homestead.yaml
+.env
+.DS_Store

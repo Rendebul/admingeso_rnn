@@ -1,0 +1,97 @@
+<ui-view>
+    <div class='row'>
+        <div class="col-sm-12 col-md-12 col-lg-12">
+            <div class='pull-right'>
+                <button class="btn btn-primary" ng-click="vm.modalCrearArchivo()">Agregar Archivo CSV</button>
+                <button class="btn btn-warning" ng-click="vm.limpiar()">Fix Datos</button>
+            </div>
+        </div>
+    </div>
+
+    <br>
+
+    <div class='row'>
+        <article class="col-sm-12 col-md-12 col-lg-12">
+            <div class="jarviswidget jarviswidget-color-bluegob" id="archivo-cargas-table">
+                <header>
+                    <span class="widget-icon"> <i class="fa fa-table"></i> </span>
+                    <h2>Listado Archivos CSV</h2>
+                </header>
+
+                <div>
+                    <div class="widget-body no-padding">
+                        <table class='table table-bordered'>
+                            <thead>
+                                <tr>
+                                    <th>Tipo Archivo</th>
+                                    <th>Fecha Asociada</th>
+                                    <th>Estado Carga</th>
+                                    <th>Registros Leidos</th>
+                                    <th>Creador</th>
+                                    <th>Fecha Carga</th>
+                                    <th class='action-column'>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>
+                                        <ui-select ng-model="vm.search.tipo" on-select="vm.filter()">
+                                            <ui-select-match placeholder="Tipo de Archivo">
+                                                {{$select.selected.nombre}}
+                                            </ui-select-match>
+                                            <ui-select-choices repeat="tipo.id as tipo in vm.tipos_archivo | filter: $select.search">
+                                                <span ng-bind-html="tipo.nombre | highlight: $select.search"></span>
+                                            </ui-select-choices>
+                                        </ui-select>
+                                    </td>
+                                    <td>
+                                         <input type="text" class="form-control" placeholder="{{vm.formato.fecha_asociada}}" ng-model="vm.search.fechaAsociada" ng-blur="vm.formatoFechaAsociada()" ng-enter="vm.formatoFechaAsociada()"/>
+                                    </td>
+                                    <td>
+                                        <ui-select ng-model="vm.search.estado" on-select="vm.filter()">
+                                            <ui-select-match placeholder="Estado de Carga">
+                                                {{$select.selected.nombre}}
+                                            </ui-select-match>
+                                            <ui-select-choices repeat="estado.id as estado in vm.estados | filter: $select.search">
+                                                <span ng-bind-html="estado.nombre | highlight: $select.search"></span>
+                                            </ui-select-choices>
+                                        </ui-select>
+                                    </td>
+                                    <td></td>
+                                    <td><input ng-model="vm.search.usuario" ng-blur="vm.filter()" ng-enter="vm.filter()" type="text" class="form-control" placeholder="Usuario"></td>
+                                    <td></td>
+                                    <td></td>
+                                </tr>
+                                <tr ng-repeat="archivo in vm.archivos" ng-class="{'fila-destacada': archivo.es_registro_valido}">
+                                    <td>{{ archivo.tipo_archivo }}</td>
+                                    <td>{{ archivo.fecha_asociada | date: vm.formato.fecha_asociada }}</td>
+                                    <td><span class="label" ng-class="vm.labelClass(archivo.estado_carga)">{{archivo.estado_carga}}</span></td>
+                                    <td>{{ archivo.registros_leidos }}</td>
+                                    <td>{{ archivo.user.name }}</td>
+                                    <td>{{ archivo.created_at | date: vm.formato.created_at }}</td>
+                                    <td>
+                                        <a ng-if="(archivo.archivo)" ng-click="vm.descargar(archivo.archivo)" class="btn btn-info btn-xs"><i class="fa fa-download"></i></a>
+                                        <a ng-click="vm.modalVerDetalles(archivo.id, $index)" class="btn btn-warning btn-xs"><i class="fa fa-eye"></i></a>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <div ng-if='vm.reload' class='text-center'>
+                            <i class="fa fa-2x fa-spinner fa-spin"></i>
+                        </div>
+
+                        <div ng-hide="vm.reload" ng-if="vm.archivos | isEmpty" class='text-center'>
+                            Sin resultados
+                        </div>
+
+                        <div ng-hide="vm.reload" ng-if="! (vm.archivos | isEmpty)" class='text-center'>
+                            <ul uib-pagination items-per-page="vm.itemsPerPage" total-items="vm.totalItems" ng-model="vm.search.page" ng-change="vm.filter()"></ul>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </article>
+    </div>
+</ui-view>

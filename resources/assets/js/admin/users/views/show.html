@@ -1,0 +1,26 @@
+<div class="col-sm-6">
+    <h1 class='capitalize'> <span class="semi-bold">{{ vm.data.name }} </span>
+        <br>
+        <small> {{ vm.data.cargo }}</small></h1>
+
+    <ul class="list-unstyled">
+        <li>
+            <p class="text-muted">
+                <i class="fa fa-phone"></i>&nbsp;&nbsp; <span class="txt-color-darken"> {{ vm.data.telefono }}</span>
+            </p>
+        </li>
+        <li>
+            <p class="text-muted">
+                <i class="fa fa-envelope"></i>&nbsp;&nbsp;<a href="javascript:void(0);">{{ vm.data.email }}</a>
+            </p>
+        </li>
+        <li>
+            <p class="text-muted">
+                <span ng-repeat="rol in vm.data.roles" class="label label-{{ vm.classRoles[rol]}}">
+                    {{ ::vm.nameRoles[rol] }}
+                </span>
+            </p>
+        </li>
+    </ul>
+    <br>
+</div>

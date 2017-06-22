@@ -1,0 +1,13 @@
+parameters:
+  bin_dir: "./vendor/bin"
+  git_dir: "."
+  tasks:
+    phpcs:
+      standard: PSR2
+      show_warnings: false
+      ignore_patterns:
+        - tests/
+        - database/
+    phpunit:
+      config_file: ~
+

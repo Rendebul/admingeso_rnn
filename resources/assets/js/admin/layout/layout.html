@@ -1,0 +1,121 @@
+<!-- #HEADER -->
+<header id="header">
+    <div id="logo-group">
+
+        <span id="logo" style="margin-top:5px"> <img src="/img/logo.png" style="width:90px" alt="logo"> </span>
+    </div>
+
+    <div class="pull-right">
+
+        <div id="hide-menu" class="btn-header pull-right">
+            <span> <a href="javascript:void(0);" data-action="toggleMenu" title="Collapse Menu"><i class="fa fa-reorder"></i></a> </span>
+        </div>
+
+        <!-- #MOBILE -->
+        <!-- Top menu profile link : this shows only when top menu is active -->
+        <ul id="mobile-profile-img" class="header-dropdown-list hidden-xs padding-5">
+            <li class="">
+                <a href="#" class="dropdown-toggle no-margin userdropdown" data-toggle="dropdown">
+                    <img src="/img/avatars/male.png" class="online" />
+                </a>
+                <ul class="dropdown-menu pull-right">
+                    <li>
+                        <a href="javascript:void(0);" class="padding-10 padding-top-0 padding-bottom-0"><i class="fa fa-cog"></i> Setting</a>
+                    </li>
+                    <li class="divider"></li>
+                    <li>
+                        <a href="#ajax/profile.html" class="padding-10 padding-top-0 padding-bottom-0"> <i class="fa fa-user"></i> <u>P</u>rofile</a>
+                    </li>
+                    <li class="divider"></li>
+                    <li>
+                        <a href="javascript:void(0);" class="padding-10 padding-top-0 padding-bottom-0" data-action="toggleShortcut"><i class="fa fa-arrow-down"></i> <u>S</u>hortcut</a>
+                    </li>
+                    <li class="divider"></li>
+                    <li>
+                        <a href="javascript:void(0);" class="padding-10 padding-top-0 padding-bottom-0" data-action="launchFullscreen"><i class="fa fa-arrows-alt"></i> Full <u>S</u>creen</a>
+                    </li>
+                    <li class="divider"></li>
+                    <li>
+                        <a ui-sref="logout" class="padding-10 padding-top-5 padding-bottom-5" data-action="userLogout"><i class="fa fa-sign-out fa-lg"></i> <strong><u>L</u>ogout</strong></a>
+                    </li>
+                </ul>
+            </li>
+        </ul>
+
+        <!-- logout button -->
+        <div id="logout" class="btn-header transparent pull-right">
+            <span> <a ui-sref="logout" title="Sign Out" data-action="userLogout"><i class="fa fa-sign-out"></i></a> </span>
+        </div>
+    </div>
+
+</header>
+
+<!-- Note: This width of the aside area can be adjusted through LESS/SASS variables -->
+<aside id="left-panel">
+
+    <!-- User info -->
+    <div class="login-info">
+        <span>
+
+            <a href="javascript:void(0);" id="show-shortcut" data-action="toggleShortcut">
+                <img src="/img/avatars/male.png" class="online" />
+                <span>
+                    {{ vm.user.name }}
+                </span>
+            </a>
+
+        </span>
+    </div>
+
+    <nav>
+        <ul data-smart-menu>
+            <li ui-sref-active="active">
+                <a ui-sref="app.home"><i class="fa fa-lg fa-fw fa-home"></i> <span class="menu-item-parent">Home</span></a>
+            </li>
+            <li data-menu-collapse>
+                <a href="#"><i class="fa fa-lg fa-fw fa-cogs"></i> <span class="menu-item-parent">Administración</span></a>
+                <ul>
+                    <li>
+                        <a data-ui-sref="app.regions.index" ui-sref-active="{'active': 'app.regions'}"><i class="fa fa-cogs"></i> Regiones</a>
+                    </li>
+                    <li>
+                        <a data-ui-sref="app.serviciosSalud.index" ui-sref-active="{'active': 'app.serviciosSalud'}"><i class="fa fa-cogs"></i> Servicios de Salud</a>
+                    </li>
+                    <li>
+                        <a data-ui-sref="app.comunas.index" ui-sref-active="{'active': 'app.comunas'}"><i class="fa fa-cogs"></i> Comunas</a>
+                    </li>
+                    <li>
+                        <a data-ui-sref="app.establecimientos.index" ui-sref-active="{'active': 'app.establecimientos'}"><i class="fa fa-cogs"></i> Establecimientos</a>
+                    </li>
+                    <li>
+                        <a data-ui-sref="app.users.index" ui-sref-active="{'active': 'app.users'}"><i class="fa fa-users"></i> Usuarios</a>
+                    </li>
+                </ul>
+            </li>
+        </ul>
+    </nav>
+
+    <span class="minifyme" data-action="minifyMenu"> <i class="fa fa-arrow-circle-left hit"></i> </span>
+</aside>
+
+<!-- #MAIN PANEL -->
+<div id="main" role="main">
+
+    <!-- RIBBON -->
+    <div id="ribbon">
+         <state-breadcrumbs></state-breadcrumbs>
+    </div>
+
+    <div id="content">
+        <div ui-view></div>
+    </div>
+
+</div>
+
+<div class="page-footer">
+    <div class="row">
+        <div class="col-xs-12 col-sm-6">
+            <span class="txt-color-white">Sistema X - © Organización Y</span>
+        </div>
+    </div>
+</div>

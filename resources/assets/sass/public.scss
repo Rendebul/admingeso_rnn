@@ -1,0 +1,53 @@
+
+// Fonts
+@import url(https://fonts.googleapis.com/css?family=Raleway:300,400,600);
+
+// Variables
+@import "variables";
+
+// Bootstrap
+@import "node_modules/bootstrap-sass/assets/stylesheets/bootstrap";
+@import "node_modules/font-awesome/scss/font-awesome";
+@import "node_modules/sweetalert/dev/sweetalert";
+
+// dropzone
+// @import "node_modules/dropzone/src/dropzone.scss";
+// @import "node_modules/ngdropzone/src/sass/ng-dz-beautify.scss";
+
+// buttons datatble
+// @import "node_modules/angular-datatables/vendor/datatables-buttons/css/buttons.bootstrap";
+// @import "node_modules/angular-datatables/vendor/datatables-buttons/css/buttons.dataTables.scss";
+
+// custom
+.action-column {
+    width: 60px;
+}
+
+.notification-body .unread {
+    background: #FFFFE0;
+}
+
+// .dropzone {
+//     background: #ea833a;
+//     background-image: linear-gradient(to bottom, #f78c40, #d67632);
+// }
+//
+// .dropzone .dz-preview {
+//     width: 250px;
+//     display: block;
+//     margin: 0 auto;
+// }
+// .dropzone .dz-preview .dz-image {
+//     width: 250px;
+//     height: 250px;
+// }
+//
+// .dropzone .dz-message {
+//     font-weight: bold;
+//     color: #FFFFFF;
+//     font-size: 27px;
+// }
+//
+// .capitalize {
+//    text-transform: capitalize;
+// }

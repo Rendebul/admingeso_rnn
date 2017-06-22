@@ -1,0 +1,67 @@
+<ui-view>
+    <div class='row'>
+        <div class="col-sm-12 col-md-12 col-lg-12">
+            <div class='pull-right'>
+                <a ui-sref='app.establecimientos.create' ng-hide="vm.hasRole('admin')" class='btn btn-primary'>Nuevo establecimiento</a>
+            </div>
+        </div>
+    </div>
+
+    <br>
+
+    <div class='row'>
+        <article class="col-sm-12 col-md-12 col-lg-12">
+            <div class="jarviswidget jarviswidget-color-blueDark" id="users-table">
+                <header>
+                    <span class="widget-icon"> <i class="fa fa-table"></i> </span>
+                    <h2>Listado de establecimientos</h2>
+                </header>
+
+                <div>
+                    <div class="widget-body">
+                        <table class='table table-bordered'>
+                            <thead>
+                                <tr>
+                                    <th style="width:150px">Codigo</th>
+                                    <th>Nombre</th>
+                                    <th>Comuna</th>
+                                    <th ng-hide="vm.hasRole('admin')" class='action-column'>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td> <input ng-model="vm.search.code" ng-blur="vm.filter()" ng-enter="vm.filter()" type="text" class="form-control" placeholder="codigo"></input> </td>
+                                    <td> <input ng-model="vm.search.name" ng-blur="vm.filter()" ng-enter="vm.filter()" type="text" class="form-control" placeholder="nombre"></input> </td>
+                                    <td> <input ng-model="vm.search.comuna" ng-blur="vm.filter()" ng-enter="vm.filter()" type="text" class="form-control" placeholder="comuna"></input> </td>
+                                    <td  ng-hide="vm.hasRole('admin')">
+                                </tr>
+                                <tr ng-repeat="establecimiento in vm.establecimientos" ng-hide="vm.reload">
+                                    <td>{{ ::establecimiento.code }}</td>
+                                    <td>{{ ::establecimiento.name }}</td>
+                                    <td>{{ ::establecimiento.comuna.name }}</td>
+                                    <td  ng-hide="vm.hasRole('admin')">
+                                        <a ui-sref="app.establecimientos.edit({id: establecimiento.id})" class="btn btn-warning btn-xs"><i class='fa fa-pencil'></i></a>
+                                        <a ng-click="vm.destroy(establecimiento.id, $index)" class='btn btn-danger btn-xs'><i class='fa fa-trash'></i></a>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <div ng-if='vm.reload' class='text-center'>
+                            <i class="fa fa-2x fa-spinner fa-spin"></i>
+                        </div>
+
+                        <div ng-hide="vm.reload" ng-if="vm.establecimientos | isEmpty" class='text-center'>
+                            Sin resultados
+                        </div>
+
+                        <div ng-hide="vm.reload" ng-if="! (vm.establecimientos | isEmpty)" class='text-center'>
+                            <ul uib-pagination items-per-page="vm.itemsPerPage" max-size="10" boundary-link-numbers="true" rotate="false" force-ellipses="true" total-items="vm.totalItems" ng-model="vm.page" ng-change="vm.filter(vm.page)"></ul>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </article>
+    </div>
+</ui-view>

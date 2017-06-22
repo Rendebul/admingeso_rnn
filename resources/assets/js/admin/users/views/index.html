@@ -1,0 +1,77 @@
+<ui-view>
+    <div class='row'>
+        <div class="col-sm-12 col-md-12 col-lg-12">
+            <div class='pull-right'>
+                <a ui-sref='app.users.create' ng-hide="vm.hasRole('admin')" class='btn btn-primary'>Nuevo Usuario</a>
+            </div>
+        </div>
+    </div>
+
+    <br>
+
+    <div class='row'>
+        <article class="col-sm-12 col-md-12 col-lg-12">
+            <div class="jarviswidget jarviswidget-color-blueDark" id="users-table">
+                <header>
+                    <span class="widget-icon"> <i class="fa fa-table"></i> </span>
+                    <h2>Listado usuarios</h2>
+                </header>
+
+                <div>
+                    <div class="widget-body">
+                        <table class='table table-bordered'>
+                            <thead>
+                                <tr>
+                                    <th>Nombre</th>
+                                    <th>Email</th>
+                                    <th>Cargo</th>
+                                    <th>Telefono</th>
+                                    <th>Roles</th>
+                                    <th ng-hide="vm.hasRole('admin')" class='action-column'>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td> <input ng-model="vm.search.name" ng-blur="vm.filter()" ng-enter="vm.filter()" type="text" class="form-control" placeholder="nombre"></input> </td>
+                                    <td> <input ng-model="vm.search.email" ng-blur="vm.filter()" ng-enter="vm.filter()" type="text" class="form-control" placeholder="email"></input> </td>
+                                    <td> <input ng-model="vm.search.cargo" ng-blur="vm.filter()" ng-enter="vm.filter()" type="text" class="form-control" placeholder="cargo"></input> </td>
+                                    <td> <input ng-model="vm.search.telefono" ng-blur="vm.filter()" ng-enter="vm.filter()" type="text" class="form-control" placeholder="telefono"></input> </td>
+                                    <td> <input ng-model="vm.search.roles" ng-blur="vm.filter()" ng-enter="vm.filter()" type="text" class="form-control" placeholder="rol"></input> </td>
+                                    <td ng-hide="vm.hasRole('admin')"></td>
+                                </tr>
+                                <tr ng-repeat="user in vm.users" ng-hide="vm.reload">
+                                    <td>{{ ::user.name }}</td>
+                                    <td>{{ ::user.email }}</td>
+                                    <td>{{ ::user.cargo }}</td>
+                                    <td>{{ ::user.telefono }}</td>
+                                    <td>
+                                        <span ng-repeat="role in user.roles">
+                                            <span class='label label-primary'>{{ ::role.label }}</span>
+                                        </span>
+                                    </td>
+                                    <td ng-hide="vm.hasRole('admin')">
+                                        <a ui-sref="app.users.edit({id: user.id})" class="btn btn-warning btn-xs"><i class='fa fa-pencil'></i></a>
+                                        <a ng-click="vm.destroy(user.id, $index)" class='btn btn-danger btn-xs'><i class='fa fa-trash'></i></a>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <div ng-if='vm.reload' class='text-center'>
+                            <i class="fa fa-2x fa-spinner fa-spin"></i>
+                        </div>
+
+                        <div ng-hide="vm.reload" ng-if="vm.users | isEmpty" class='text-center'>
+                            Sin resultados
+                        </div>
+
+                        <div ng-hide="vm.reload" ng-if="! (vm.users | isEmpty)" class='text-center'>
+                            <ul uib-pagination items-per-page="vm.itemsPerPage" max-size="10" boundary-link-numbers="true" rotate="false" force-ellipses="true" total-items="vm.totalItems" ng-model="vm.page" ng-change="vm.filter(vm.page)"></ul>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </article>
+    </div>
+</ui-view>

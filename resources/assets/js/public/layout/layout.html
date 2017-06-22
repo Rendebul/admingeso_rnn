@@ -1,0 +1,145 @@
+<div class="smart-style-3">
+    <header id="header">
+        <div id="logo-group">
+
+            <span id="logo" style="margin-top:5px"> <img src="/img/logo.png" style="width:90px" alt="ChCC"> </span>
+
+            <!-- notifications -->
+            <span notifications-toggle id="activity" class="activity-dropdown">
+                <i class="fa fa-user"></i> <b class="badge" ng-class="{'bg-color-red': vm.unreadNotificationsSize > 0}"> {{ vm.unreadNotificationsSize }}</b>
+            </span>
+
+            <div class="ajax-dropdown">
+                <div class="btn-group btn-group-justified" data-toggle="buttons">
+                    <label class="btn btn-default">
+                        <input type="radio" name="activity">
+                        Notificaciones ({{ vm.notificationsSize }}) </label>
+                </div>
+
+                <!-- notification content -->
+                <div class="ajax-notifications custom-scroll">
+
+                    <ul class="notification-body">
+                        <li ng-repeat="notification in vm.user.notifications">
+                            <span class="padding-10" ng-class="{unread : !notification.read_at}">
+                                <em class="badge padding-5 no-border-radius bg-color-blueLight pull-left margin-right-5">
+                                    <i class="fa {{notification.data.icon}} fa-fw fa-2x"></i>
+                                </em>
+
+                                <span>
+                                    {{notification.data.message}}
+                                    <br>
+                                    <span class="pull-right font-xs text-muted"><i>{{notification.time}}</i></span>
+                                </span>
+                            </span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="pull-right">
+
+            <div id="hide-menu" class="btn-header pull-right">
+                <span> <a href="javascript:void(0);" data-action="toggleMenu" title="Collapse Menu"><i class="fa fa-reorder"></i></a> </span>
+            </div>
+
+            <!-- #MOBILE -->
+            <!-- Top menu profile link : this shows only when top menu is active -->
+            <ul id="mobile-profile-img" class="header-dropdown-list hidden-xs padding-5">
+                <li class="">
+                    <a href="#" class="dropdown-toggle no-margin userdropdown" data-toggle="dropdown">
+                        <img src="/img/avatars/male.png" class="online" />
+                    </a>
+                    <ul class="dropdown-menu pull-right">
+                        <li>
+                            <a href="#" class="padding-10 padding-top-0 padding-bottom-0"><i class="fa fa-cog"></i> Setting</a>
+                        </li>
+                        <li class="divider"></li>
+                        <li>
+                            <a href="#" class="padding-10 padding-top-0 padding-bottom-0"> <i class="fa fa-user"></i> <u>P</u>rofile</a>
+                        </li>
+                        <li class="divider"></li>
+                        <li>
+                            <a ui-sref="logout" class="padding-10 padding-top-5 padding-bottom-5" data-action="userLogout"><i class="fa fa-sign-out fa-lg"></i> <strong><u>L</u>ogout</strong></a>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+
+            <!-- logout -->
+            <div id="logout" class="btn-header transparent pull-right">
+                <span> <a ui-sref="logout" title="Sign Out" data-action="userLogout"><i class="fa fa-sign-out"></i></a> </span>
+            </div>
+        </div>
+
+    </header>
+
+    <aside id="left-panel">
+
+        <!-- User info -->
+        <div class="login-info">
+            <span>
+
+                <a href="javascript:void(0);" toggle-shortcut>
+                    <img src="/img/avatars/male.png" class="online" />
+                    <span>
+                        {{ vm.user.name }}
+                    </span>
+                    <i class="fa fa-angle-down"></i>
+                </a>
+
+            </span>
+        </div>
+
+		<nav>
+            <ul data-smart-menu>
+                <li ui-sref-active="active">
+                    <a ui-sref="app.profile"><i class="fa fa-lg fa-fw fa-user"></i> <span class="menu-item-parent">Perfil</span></a>
+                </li>
+                <li ui-sref-active="active">
+                    <a ui-sref="app.home"><i class="fa fa-lg fa-fw fa-dashboard"></i> <span class="menu-item-parent">Home</span></a>
+                </li>
+                <li ui-sref-active="active">
+                    <a ui-sref="app.csvs"><i class="fa fa-lg fa-fw fa-file"></i> <span class="menu-item-parent">Archivo Cargas</span></a>
+                </li>
+            </ul>
+        </nav>
+
+        <span class="minifyme" data-action="minifyMenu"> <i class="fa fa-arrow-circle-left hit"></i> </span>
+    </aside>
+
+    <div id="main" role="main">
+
+        <div id="ribbon">
+            <state-breadcrumbs></state-breadcrumbs>
+        </div>
+
+        <div id="content">
+            <div ui-view></div>
+        </div>
+
+    </div>
+
+    <div class="page-footer">
+        <div class="row">
+            <div class="col-xs-12 col-sm-12 col-md-12">
+                <span class="txt-color-white" style="font-size:11px">Ante cualquier problema escribir a: soporte@sistema.cl</span> </div>
+        </div>
+    </div>
+
+	<div id="shortcut">
+		<ul>
+			<li>
+				<a ui-sref="app.profile" class="jarvismetro-tile big-cubes bg-color-orangeDark"> <span class="iconbox"> <i class="fa fa-user fa-4x"></i> <span>Perfil</span> </span> </a>
+			</li>
+            <li>
+				<a ui-sref="app.home" ng-if="vm.hasRole('solicitante')" class="jarvismetro-tile big-cubes bg-color-purple"> <span class="iconbox"> <i class="fa fa-user fa-4x"></i> <span>Dashboard</span> </span> </a>
+			</li>
+			<li>
+				<a ui-sref="logout" class="jarvismetro-tile big-cubes bg-color-blueDark"> <span class="iconbox"> <i class="fa fa-sign-out fa-4x"></i> <span>Salir </span> </span> </a>
+			</li>
+		</ul>
+	</div>
+	<!-- END SHORTCUT AREA -->
+</div>

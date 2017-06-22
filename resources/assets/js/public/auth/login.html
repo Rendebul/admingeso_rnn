@@ -1,0 +1,69 @@
+<ui-view>
+    <section class="" style="padding-top: 100px;">
+        <div class="row">
+            <article class="col-md-4 col-md-offset-4">
+
+                <div class="jarviswidget" id="wid-id-0">
+
+					<form class="animated flipInY">
+						<div class="logo" style="padding: 0px 25px 10px 25px; display: block;">
+							<h1 class="semi-bold"><img src="img/logo-o.png" style="width: 100%; margin-top: -4px; margin-right: -2px;" alt=""> </h1>
+						</div>
+					</form>
+
+                    <header>
+                        <span class="widget-icon"> <i class="fa fa-key"></i> </span>
+                        <h2>Login</h2>
+                    </header>
+
+                    <div>
+                        <div class="jarviswidget-editbox">
+                            <input class="form-control" type="text">
+                        </div>
+                        <div class="widget-body no-padding">
+
+
+                            <form role="form" method="POST" novalidate class="smart-form client-form">
+
+                                <fieldset>
+
+                                    <section>
+                                        <label class="label control-label" for="email">E-mail</label>
+                                        <label class="input" ng-class="{'state-error': vm.hasError('email')}"> <i class="icon-append fa fa-user"></i>
+                                            <input ng-model="vm.user.email" id="email" type="email" name="email">
+                                            <b class="tooltip tooltip-top-right"><i class="fa fa-user txt-color-teal"></i> Ingresar correo/usuario</b>
+                                        </label>
+                                        <em ng-if="vm.hasError('email')" class="help-block">
+                                            {{ vm.errors.email[0] }}
+                                        </em>
+                                    </section>
+
+                                    <section>
+                                        <label class="label control-label">Password</label>
+                                        <label class="input" ng-class="{'state-error': vm.hasError('email')}"> <i class="icon-append fa fa-lock"></i>
+                                            <input ng-model="vm.user.password" id="password" type="password" name="password">
+                                            <b class="tooltip tooltip-top-right"><i class="fa fa-lock txt-color-teal"></i> Ingresa tu password</b>
+                                        </label>
+                                        <em ng-if="vm.hasError('password')" class="help-block">
+                                            {{ vm.errors.password[0] }}
+                                        </em>
+
+                                        <div class="note">
+                                            <a href="/password/reset">Olvidó password?</a>
+                                        </div>
+                                    </section>
+
+                                </fieldset>
+                                <footer>
+                                    <button ng-click="vm.login()" type="submit" class="btn btn-primary">
+                                        Enviar
+                                    </button>
+                                </footer>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </article>
+        </div>
+    </section>
+</ui-view>
