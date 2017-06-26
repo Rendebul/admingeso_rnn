@@ -28,15 +28,15 @@ class Kernel extends ConsoleKernel
     {
         // $schedule->command('inspire')
         //          ->hourly();
-        $schedule->command(function() {
+        $schedule->call(function () {
             $p = new PythonService();
             $p->callTrain();
-        })->monthlyOn(1,'0:00');
+        })->monthlyOn(1, '0:00');
 
-        $schedule->command(function() {
+        $schedule->call(function () {
             $p = new PythonService();
             $p->callTrain();
-        })->everyMinute()->sendOutput('public/zapato.txt');
+        })->everyMinute();
     }
 
     /**
