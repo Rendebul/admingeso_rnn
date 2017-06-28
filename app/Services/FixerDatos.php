@@ -8,30 +8,32 @@ class FixerDatos
 {
     public function iterarDatos()
     {
-        $placas = Datos::all()->groupBy('placaprefixo');
+        $placas = Datos::all();
 
         $rms = [];
 
         $ant = 'A';
+        $placa_anterior = ' ';
         $contador = 1;
         echo "Testearé iterar";
         $rm = false;
-        foreach ($placas as $datos) {
-            foreach ($datos as $dato) {
-                if($ant != $dato->direcao) {
-                    if($rm) {
-                        $rms[] = $rm;
-                    }
-                    $rm = new RutaModel();        
-                    $rm->addDato($dato);
-                    $ant = $dato->direcao;    
-                } else {
-                    $rm->addDato($dato);    
+        $cod_anterior = ' ';
+        foreach ($placas as $dato) {
+            if($placa_anterior != $dato->placaprefixo OR $ant != $dato->direcao OR $cod_anterior != $dato->codrota) {
+                if($rm) {
+                    $rms[] = $rm;
                 }
-                //echo ($contador);
-                //echo "\n";
-                $contador++;
+                $rm = new RutaModel();        
+                $rm->addDato($dato);
+                $ant = $dato->direcao;
+                $placa_anterior = $dato->placaprefixo;
+                $cod_anterior = $dato->codrota;    
+            } else {
+                $rm->addDato($dato);    
             }
+            //echo ($contador);
+            //echo "\n";
+            $contador++;
         }
         $ctdad = count($rms);
         echo 'Recorridos totales: ' . $ctdad;
@@ -69,7 +71,8 @@ class FixerDatos
     {
         $hasher = [];
         foreach ($datos as $dato) {
-            $key = (int)$dato->km;
+            var_dump($dato->km);
+            $key = round($dato->km);
             if (isset($hasher[$key])) {
                 $hasher[$key] += 1;
             } else {
@@ -84,14 +87,14 @@ class FixerDatos
                 $llave_mayor = $key;
             }
         }
-
+        var_dump($hasher);
         return ['mayor' => $mayor, 'kms' => $llave_mayor];
     }
 
     private function borrarFueraRango($rms, $rango) {
         $kms_i = $rango['kms'] - 2;
         $kms_s = $rango['kms'] + 2;
-        //echo 'Rango: menor:' . $kms_i . ' mayor:' . $kms_s . "\n";
+        echo 'Rango: menor:' . $kms_i . ' mayor:' . $kms_s . "\n";
         foreach ($rms as $recorrido) {
             if($kms_i > $recorrido->km || $kms_s < $recorrido->km) {
                 echo 'Borraré km ' . $recorrido->km;

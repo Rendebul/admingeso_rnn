@@ -1,5 +1,5 @@
 /node_modules
-/archivo_cargas
+public/archivo_cargas
 /public/storage
 /public/css
 /public/js
