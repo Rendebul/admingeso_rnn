@@ -27,7 +27,7 @@ module.exports = function (
 
   vm.submitForm = function () {
     vm.formIsSubmit = true;
-
+    console.log('data',vm.data);
     Upload.upload({
       url: '/api/' + ArchivoCargaService.getUploadRoute(),
       data: vm.data,

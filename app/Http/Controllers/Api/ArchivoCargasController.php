@@ -32,6 +32,7 @@ class ArchivoCargasController extends ApiController
 
     public function store(Request $request)
     {
+	//dd($request);
         $this->validate($request, [
             'tipo_archivo'  => 'required|string|max:255',
             'file'          => 'required|file',

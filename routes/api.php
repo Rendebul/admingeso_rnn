@@ -2,6 +2,11 @@
 
 use Illuminate\Http\Request;
 
+Route::get('datosGPS', function(){
+	dd(request()->all());
+	return ['tiempo'=>55];
+});
+
 Route::group(['middleware' => ['auth:api', 'admin'], 'namespace' => 'Api'], function () {
     Route::resource('users', 'UsersController');
     Route::resource('roles', 'RolesController');
