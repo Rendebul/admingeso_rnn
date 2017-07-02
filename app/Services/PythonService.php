@@ -9,7 +9,7 @@ class PythonService
 {
     public function callTrain()
     {
-        system('python public/train.py');
+        system('python3.5 public/python/admin_train_P2.py');
     }
 
     public function callDato(Request $request)
@@ -20,7 +20,7 @@ class PythonService
         $var4 = -45.421;
         $var5 = -34.213;
         $output = null;
-        $dato = system('python public/test.py '.$var1.' '.$var2.' '.$var3.' '.$var4.' '.$var5, $output);
+        $dato = system('python3.5 public/test.py '.$var1.' '.$var2.' '.$var3.' '.$var4.' '.$var5, $output);
         return $output;
     }
 }

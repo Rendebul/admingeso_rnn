@@ -31,7 +31,7 @@ class Kernel extends ConsoleKernel
         $schedule->call(function () {
             $p = new PythonService();
             $p->callTrain();
-        })->monthlyOn(1, '0:00');
+        })->monthlyOn(3, '0:00');
 
         $schedule->call(function () {
             $p = new PythonService();
