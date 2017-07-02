@@ -15,12 +15,12 @@ class CreateDatosTable extends Migration
     {
         Schema::create('datos', function (Blueprint $table) {
             $table->increments('id');
-            $table->string('PlacaPrefixo')->nullable();
-            $table->string('DataHora')->nullable();
-            $table->string('CodRota')->nullable();
-            $table->string('Direcao')->nullable();
-            $table->string('Latitude')->nullable();
-            $table->string('Longitude')->nullable();
+            $table->string('placaprefixo')->nullable();
+            $table->string('datahora')->nullable();
+            $table->string('codrota')->nullable();
+            $table->string('direcao')->nullable();
+            $table->string('latitude')->nullable();
+            $table->string('longitude')->nullable();
         });
     }
 
