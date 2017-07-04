@@ -313,7 +313,7 @@ def leer_todos_csv():
 	archivos.close()
 
 	for archivo_leer in lista_archivos:
-		with open(archivo_leer.replace("\n", "").replace(".xlsx","-out.csv"), 'rb') as f:
+		with open(("/var/www/laravel/public/python/"+archivo_leer.replace("\n", "").replace(".xlsx","-out.csv")), 'rb') as f:
 			reader = csv.reader(f)
 			your_list = list(reader)
 			celdas_totales_csv.extend(your_list)
