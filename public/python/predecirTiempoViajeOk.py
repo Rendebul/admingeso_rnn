@@ -23,9 +23,9 @@ fin_global = []
 def conect():
 	conn_string ="host='127.0.0.1' port='5432' dbname='admingeso' user='postgres' password='798465132'"
 
-	print ("Conectando a: \n =>%s" % (conn_string) )
+	#print ("Conectando a: \n =>%s" % (conn_string) )
 	conn = psycopg2.connect(conn_string)
-	print ("Conectado!")
+	#print ("Conectado!")
 	return conn
 
 def parser_time(dato):
@@ -157,8 +157,8 @@ def iterarDatos(datos):
 		
 		#celda.append(Cont_Recorrido_Total)
 		
-		if(cont_print % 10000 == 0):
-			print (celda)
+		#if(cont_print % 10000 == 0):
+			#print (celda)
 			
 		lista_puntos.append(celda)
 		
@@ -172,15 +172,15 @@ def iterarDatos(datos):
 	#Cont_Recorrido += 1
 	#Cont_Recorrido_Total += 1
 	#agregar_recorrido()
-	print("Cantidad de puntos "+ str(cont_print))
-	print("Cantidad de recorridos de la patente "+ str(Cont_Recorrido))
-	print("Cantidad de recorridos totales "+ str(Cont_Recorrido_Total))
+	#print("Cantidad de puntos "+ str(cont_print))
+	#print("Cantidad de recorridos de la patente "+ str(Cont_Recorrido))
+	#print("Cantidad de recorridos totales "+ str(Cont_Recorrido_Total))
 
 	return lista_recorridos
 
 def filtrarDatos(datos):
 	datos = datos[:]
-	print (datos[0])
+	#print (datos[0])
 	cantidad_27 = 0
 	cantidad_24 = 0
 	pos_ruta = 0
@@ -429,19 +429,19 @@ def main():
 			#se procede a cargar la red
 			redNeuronalRecurrente = pyrenn.loadNN('/var/www/laravel/public/python/rnn_5_entradas.csv')
 			#se debe trasponer la matriz de entradas creada, aunque solo sea un set de entrada el que se consulta
-			print("Entrada de la red: ")
+			#print("Entrada de la red: ")
 			entradaAux=[entradaRed]
-			print(entradaAux)
+			#print(entradaAux)
 			entrada = numpy.array(entradaAux).transpose()
-			print("Entrada traspuesta: ")
-			print(entrada)
+			#print("Entrada traspuesta: ")
+			#print(entrada)
 			salida = pyrenn.NNOut(entrada,redNeuronalRecurrente)[0]
-			print("Salida de la red")
+			#print("Salida de la red")
 			print(salida)
 			return salida
 
 	else:
-			print ("Este programa necesita parametros")
+			#print ("Este programa necesita parametros")
 			return 0
 
 if __name__ == "__main__":

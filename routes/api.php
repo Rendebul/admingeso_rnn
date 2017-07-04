@@ -5,8 +5,15 @@ use App\Services\PythonService;
 
 Route::get('datosGPS', function(){
 	//dd(request()->all());
-	$ps = new PythonService();
-	return $ps->callDato(request());
+	$ps = new PythonService;
+	$datos = $ps->callDato(request());
+	if ((int)$datos[1]!=0) {
+		return ['tiempo'=>'Error'];
+	} else {
+		return ['tiempo'=>(float)$datos[0]];
+	}
+
+	//return $ps->callDato(request());
 });
 
 Route::group(['middleware' => ['auth:api', 'admin'], 'namespace' => 'Api'], function () {
