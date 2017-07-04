@@ -1,6 +1,9 @@
 <?php 
 
 namespace App\Services;
+
+use Illuminate\Http\Request;
+use Carbon\Carbon;
 /**
 * Clase para python por consola.
 */
@@ -14,13 +17,13 @@ class PythonService
 
     public function callDato(Request $request)
     {
-        $var1 = 530;
+        $var1 = Carbon::now()->toDateTimeString();
         $var2 = -30.321;
         $var3 = -40.432;
         $var4 = -45.421;
         $var5 = -34.213;
         $output = null;
-        $dato = system('python3.5 public/test.py '.$var1.' '.$var2.' '.$var3.' '.$var4.' '.$var5, $output);
+        $dato = system('python3.5 public/python/predecirTiempoViaje.py '.$var1.' '.$var2.' '.$var3.' '.$var4.' '.$var5, $output);
         return $output;
     }
 }
