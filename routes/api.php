@@ -1,10 +1,12 @@
 <?php
 
 use Illuminate\Http\Request;
+use App\Services\PythonService;
 
 Route::get('datosGPS', function(){
 	//dd(request()->all());
-	return ['tiempo'=>76];
+	$ps = new PythonService();
+	return $ps->callDato(request());
 });
 
 Route::group(['middleware' => ['auth:api', 'admin'], 'namespace' => 'Api'], function () {
