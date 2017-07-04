@@ -379,10 +379,10 @@ def main():
 			#Falta agregar el porcentaje de distancia del total que representa cada punto
 			#se cargan todos los datos
 			conn = conect()
-		    cursor = conn.cursor()
-		    query = "SELECT placaprefixo,datahora,codrota,direcao,latitude,longitude FROM datos"
-		    cursor.execute(query)
-		    records = cursor.fetchall()
+			cursor = conn.cursor()
+			query = "SELECT placaprefixo,datahora,codrota,direcao,latitude,longitude FROM datos"
+			cursor.execute(query)
+			records = cursor.fetchall()
 			#records = leer_todos_csv()
 			#se obtienen los recorridos
 			listaRecorridos = iterarDatos(records)
