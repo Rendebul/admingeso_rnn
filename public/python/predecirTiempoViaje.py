@@ -19,6 +19,13 @@ Cont_Recorrido = 0
 Cont_Recorrido_Total = 0
 fin_global = []
 
+def conect():
+    conn_string ="host='127.0.0.1' port='5432' dbname='admingeso' user='postgres' password='798465132'"
+
+    print ("Conectando a: \n =>%s" % (conn_string) )
+    conn = psycopg2.connect(conn_string)
+    print ("Conectado!")
+    return conn
 
 def parser_time(dato):
 	spliter = dato[1].split(' ')
@@ -371,7 +378,12 @@ def main():
 			entradaRed.append(tiempo_cos)
 			#Falta agregar el porcentaje de distancia del total que representa cada punto
 			#se cargan todos los datos
-			records = leer_todos_csv()
+			conn = conect()
+		    cursor = conn.cursor()
+		    query = "SELECT placaprefixo,datahora,codrota,direcao,latitude,longitude FROM datos"
+		    cursor.execute(query)
+		    records = cursor.fetchall()
+			#records = leer_todos_csv()
 			#se obtienen los recorridos
 			listaRecorridos = iterarDatos(records)
 			#se filtran los recorridos
