@@ -295,7 +295,7 @@ def prepTrain(l_recorridos_filtrados,MAX_RECORRIDOS):
 
 def leer_csv():
 	celdas_totales_csv = []
-	with open("1-10-Janeiro-Belem-out.csv", 'rb') as f:
+	with open("/var/www/laravel/public/python/1-10-Janeiro-Belem-out.csv", 'rb') as f:
 			reader = csv.reader(f)
 			your_list = list(reader)
 			celdas_totales_csv.extend(your_list)
@@ -306,7 +306,7 @@ def leer_todos_csv():
 	celdas_totales_csv = []
 
 	#Lista de archivos a leer
-	archivos = open("nombres_csv_procesar.txt",'r')
+	archivos = open("/var/www/laravel/public/python/nombres_csv_procesar.txt",'r')
 
 	for archivo in archivos:
 		lista_archivos.append(archivo)
