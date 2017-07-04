@@ -427,7 +427,7 @@ def main():
 			entradaRed.append(distancia)
 			#Una vez "traducidos" los datos enviados por la aplicacion
 			#se procede a cargar la red
-			redNeuronalRecurrente = pyrenn.loadNN('rnn_5_entradas.csv')
+			redNeuronalRecurrente = pyrenn.loadNN('/var/www/laravel/public/python/rnn_5_entradas.csv')
 			#se debe trasponer la matriz de entradas creada, aunque solo sea un set de entrada el que se consulta
 			print("Entrada de la red: ")
 			entradaAux=[entradaRed]
