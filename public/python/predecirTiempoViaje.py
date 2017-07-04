@@ -1,3 +1,4 @@
+import psycopg2
 import sys
 import numpy
 import admin_train_P1
@@ -5,8 +6,6 @@ from geopy.distance import vincenty
 import pyrenn
 import csv
 from datetime import datetime
-
-
 
 
 lista_puntos = []
