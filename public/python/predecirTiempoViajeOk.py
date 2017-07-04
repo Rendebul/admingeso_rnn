@@ -403,7 +403,7 @@ def main():
 			#se debe hacer que siempre el indice del punto final sea mayor que el del punto inicial
 			while(indicePuntoFinal<=indicePuntoInicial):
 				#se modifica el indice del punto final, agregandole la mitad de la cantidad de puntos del recorrido pivote
-				indicePuntoFinal=indicePuntoFinal+(cantidadPuntosRecorridoPivote/2)
+				indicePuntoFinal= int(indicePuntoFinal+(cantidadPuntosRecorridoPivote/2))
 			#una vez obtenidos los indices de los puntos
 			#se debe calcular la distancia que hay desde el inicio de la ruta hasta cada punto, acumulando la distancia entre sus puntos intermedios
 			#para que esta sea continua
