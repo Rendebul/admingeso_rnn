@@ -4851,752 +4851,6 @@ module.exports = 'angular-loading-bar';
  */
 (function(window, angular) {'use strict';
 
-var forEach;
-var isArray;
-var isString;
-var jqLite;
-
-/**
- * @ngdoc module
- * @name ngMessages
- * @description
- *
- * The `ngMessages` module provides enhanced support for displaying messages within templates
- * (typically within forms or when rendering message objects that return key/value data).
- * Instead of relying on JavaScript code and/or complex ng-if statements within your form template to
- * show and hide error messages specific to the state of an input field, the `ngMessages` and
- * `ngMessage` directives are designed to handle the complexity, inheritance and priority
- * sequencing based on the order of how the messages are defined in the template.
- *
- * Currently, the ngMessages module only contains the code for the `ngMessages`, `ngMessagesInclude`
- * `ngMessage` and `ngMessageExp` directives.
- *
- * # Usage
- * The `ngMessages` directive allows keys in a key/value collection to be associated with a child element
- * (or 'message') that will show or hide based on the truthiness of that key's value in the collection. A common use
- * case for `ngMessages` is to display error messages for inputs using the `$error` object exposed by the
- * {@link ngModel ngModel} directive.
- *
- * The child elements of the `ngMessages` directive are matched to the collection keys by a `ngMessage` or
- * `ngMessageExp` directive. The value of these attributes must match a key in the collection that is provided by
- * the `ngMessages` directive.
- *
- * Consider the following example, which illustrates a typical use case of `ngMessages`. Within the form `myForm` we
- * have a text input named `myField` which is bound to the scope variable `field` using the {@link ngModel ngModel}
- * directive.
- *
- * The `myField` field is a required input of type `email` with a maximum length of 15 characters.
- *
- * ```html
- * <form name="myForm">
- *   <label>
- *     Enter text:
- *     <input type="email" ng-model="field" name="myField" required maxlength="15" />
- *   </label>
- *   <div ng-messages="myForm.myField.$error" role="alert">
- *     <div ng-message="required">Please enter a value for this field.</div>
- *     <div ng-message="email">This field must be a valid email address.</div>
- *     <div ng-message="maxlength">This field can be at most 15 characters long.</div>
- *   </div>
- * </form>
- * ```
- *
- * In order to show error messages corresponding to `myField` we first create an element with an `ngMessages` attribute
- * set to the `$error` object owned by the `myField` input in our `myForm` form.
- *
- * Within this element we then create separate elements for each of the possible errors that `myField` could have.
- * The `ngMessage` attribute is used to declare which element(s) will appear for which error - for example,
- * setting `ng-message="required"` specifies that this particular element should be displayed when there
- * is no value present for the required field `myField` (because the key `required` will be `true` in the object
- * `myForm.myField.$error`).
- *
- * ### Message order
- *
- * By default, `ngMessages` will only display one message for a particular key/value collection at any time. If more
- * than one message (or error) key is currently true, then which message is shown is determined by the order of messages
- * in the HTML template code (messages declared first are prioritised). This mechanism means the developer does not have
- * to prioritize messages using custom JavaScript code.
- *
- * Given the following error object for our example (which informs us that the field `myField` currently has both the
- * `required` and `email` errors):
- *
- * ```javascript
- * <!-- keep in mind that ngModel automatically sets these error flags -->
- * myField.$error = { required : true, email: true, maxlength: false };
- * ```
- * The `required` message will be displayed to the user since it appears before the `email` message in the DOM.
- * Once the user types a single character, the `required` message will disappear (since the field now has a value)
- * but the `email` message will be visible because it is still applicable.
- *
- * ### Displaying multiple messages at the same time
- *
- * While `ngMessages` will by default only display one error element at a time, the `ng-messages-multiple` attribute can
- * be applied to the `ngMessages` container element to cause it to display all applicable error messages at once:
- *
- * ```html
- * <!-- attribute-style usage -->
- * <div ng-messages="myForm.myField.$error" ng-messages-multiple>...</div>
- *
- * <!-- element-style usage -->
- * <ng-messages for="myForm.myField.$error" multiple>...</ng-messages>
- * ```
- *
- * ## Reusing and Overriding Messages
- * In addition to prioritization, ngMessages also allows for including messages from a remote or an inline
- * template. This allows for generic collection of messages to be reused across multiple parts of an
- * application.
- *
- * ```html
- * <script type="text/ng-template" id="error-messages">
- *   <div ng-message="required">This field is required</div>
- *   <div ng-message="minlength">This field is too short</div>
- * </script>
- *
- * <div ng-messages="myForm.myField.$error" role="alert">
- *   <div ng-messages-include="error-messages"></div>
- * </div>
- * ```
- *
- * However, including generic messages may not be useful enough to match all input fields, therefore,
- * `ngMessages` provides the ability to override messages defined in the remote template by redefining
- * them within the directive container.
- *
- * ```html
- * <!-- a generic template of error messages known as "my-custom-messages" -->
- * <script type="text/ng-template" id="my-custom-messages">
- *   <div ng-message="required">This field is required</div>
- *   <div ng-message="minlength">This field is too short</div>
- * </script>
- *
- * <form name="myForm">
- *   <label>
- *     Email address
- *     <input type="email"
- *            id="email"
- *            name="myEmail"
- *            ng-model="email"
- *            minlength="5"
- *            required />
- *   </label>
- *   <!-- any ng-message elements that appear BEFORE the ng-messages-include will
- *        override the messages present in the ng-messages-include template -->
- *   <div ng-messages="myForm.myEmail.$error" role="alert">
- *     <!-- this required message has overridden the template message -->
- *     <div ng-message="required">You did not enter your email address</div>
- *
- *     <!-- this is a brand new message and will appear last in the prioritization -->
- *     <div ng-message="email">Your email address is invalid</div>
- *
- *     <!-- and here are the generic error messages -->
- *     <div ng-messages-include="my-custom-messages"></div>
- *   </div>
- * </form>
- * ```
- *
- * In the example HTML code above the message that is set on required will override the corresponding
- * required message defined within the remote template. Therefore, with particular input fields (such
- * email addresses, date fields, autocomplete inputs, etc...), specialized error messages can be applied
- * while more generic messages can be used to handle other, more general input errors.
- *
- * ## Dynamic Messaging
- * ngMessages also supports using expressions to dynamically change key values. Using arrays and
- * repeaters to list messages is also supported. This means that the code below will be able to
- * fully adapt itself and display the appropriate message when any of the expression data changes:
- *
- * ```html
- * <form name="myForm">
- *   <label>
- *     Email address
- *     <input type="email"
- *            name="myEmail"
- *            ng-model="email"
- *            minlength="5"
- *            required />
- *   </label>
- *   <div ng-messages="myForm.myEmail.$error" role="alert">
- *     <div ng-message="required">You did not enter your email address</div>
- *     <div ng-repeat="errorMessage in errorMessages">
- *       <!-- use ng-message-exp for a message whose key is given by an expression -->
- *       <div ng-message-exp="errorMessage.type">{{ errorMessage.text }}</div>
- *     </div>
- *   </div>
- * </form>
- * ```
- *
- * The `errorMessage.type` expression can be a string value or it can be an array so
- * that multiple errors can be associated with a single error message:
- *
- * ```html
- *   <label>
- *     Email address
- *     <input type="email"
- *            ng-model="data.email"
- *            name="myEmail"
- *            ng-minlength="5"
- *            ng-maxlength="100"
- *            required />
- *   </label>
- *   <div ng-messages="myForm.myEmail.$error" role="alert">
- *     <div ng-message-exp="'required'">You did not enter your email address</div>
- *     <div ng-message-exp="['minlength', 'maxlength']">
- *       Your email must be between 5 and 100 characters long
- *     </div>
- *   </div>
- * ```
- *
- * Feel free to use other structural directives such as ng-if and ng-switch to further control
- * what messages are active and when. Be careful, if you place ng-message on the same element
- * as these structural directives, Angular may not be able to determine if a message is active
- * or not. Therefore it is best to place the ng-message on a child element of the structural
- * directive.
- *
- * ```html
- * <div ng-messages="myForm.myEmail.$error" role="alert">
- *   <div ng-if="showRequiredError">
- *     <div ng-message="required">Please enter something</div>
- *   </div>
- * </div>
- * ```
- *
- * ## Animations
- * If the `ngAnimate` module is active within the application then the `ngMessages`, `ngMessage` and
- * `ngMessageExp` directives will trigger animations whenever any messages are added and removed from
- * the DOM by the `ngMessages` directive.
- *
- * Whenever the `ngMessages` directive contains one or more visible messages then the `.ng-active` CSS
- * class will be added to the element. The `.ng-inactive` CSS class will be applied when there are no
- * messages present. Therefore, CSS transitions and keyframes as well as JavaScript animations can
- * hook into the animations whenever these classes are added/removed.
- *
- * Let's say that our HTML code for our messages container looks like so:
- *
- * ```html
- * <div ng-messages="myMessages" class="my-messages" role="alert">
- *   <div ng-message="alert" class="some-message">...</div>
- *   <div ng-message="fail" class="some-message">...</div>
- * </div>
- * ```
- *
- * Then the CSS animation code for the message container looks like so:
- *
- * ```css
- * .my-messages {
- *   transition:1s linear all;
- * }
- * .my-messages.ng-active {
- *   // messages are visible
- * }
- * .my-messages.ng-inactive {
- *   // messages are hidden
- * }
- * ```
- *
- * Whenever an inner message is attached (becomes visible) or removed (becomes hidden) then the enter
- * and leave animation is triggered for each particular element bound to the `ngMessage` directive.
- *
- * Therefore, the CSS code for the inner messages looks like so:
- *
- * ```css
- * .some-message {
- *   transition:1s linear all;
- * }
- *
- * .some-message.ng-enter {}
- * .some-message.ng-enter.ng-enter-active {}
- *
- * .some-message.ng-leave {}
- * .some-message.ng-leave.ng-leave-active {}
- * ```
- *
- * {@link ngAnimate Click here} to learn how to use JavaScript animations or to learn more about ngAnimate.
- */
-angular.module('ngMessages', [], function initAngularHelpers() {
-  // Access helpers from angular core.
-  // Do it inside a `config` block to ensure `window.angular` is available.
-  forEach = angular.forEach;
-  isArray = angular.isArray;
-  isString = angular.isString;
-  jqLite = angular.element;
-})
-  .info({ angularVersion: '1.6.4' })
-
-  /**
-   * @ngdoc directive
-   * @module ngMessages
-   * @name ngMessages
-   * @restrict AE
-   *
-   * @description
-   * `ngMessages` is a directive that is designed to show and hide messages based on the state
-   * of a key/value object that it listens on. The directive itself complements error message
-   * reporting with the `ngModel` $error object (which stores a key/value state of validation errors).
-   *
-   * `ngMessages` manages the state of internal messages within its container element. The internal
-   * messages use the `ngMessage` directive and will be inserted/removed from the page depending
-   * on if they're present within the key/value object. By default, only one message will be displayed
-   * at a time and this depends on the prioritization of the messages within the template. (This can
-   * be changed by using the `ng-messages-multiple` or `multiple` attribute on the directive container.)
-   *
-   * A remote template can also be used to promote message reusability and messages can also be
-   * overridden.
-   *
-   * {@link module:ngMessages Click here} to learn more about `ngMessages` and `ngMessage`.
-   *
-   * @usage
-   * ```html
-   * <!-- using attribute directives -->
-   * <ANY ng-messages="expression" role="alert">
-   *   <ANY ng-message="stringValue">...</ANY>
-   *   <ANY ng-message="stringValue1, stringValue2, ...">...</ANY>
-   *   <ANY ng-message-exp="expressionValue">...</ANY>
-   * </ANY>
-   *
-   * <!-- or by using element directives -->
-   * <ng-messages for="expression" role="alert">
-   *   <ng-message when="stringValue">...</ng-message>
-   *   <ng-message when="stringValue1, stringValue2, ...">...</ng-message>
-   *   <ng-message when-exp="expressionValue">...</ng-message>
-   * </ng-messages>
-   * ```
-   *
-   * @param {string} ngMessages an angular expression evaluating to a key/value object
-   *                 (this is typically the $error object on an ngModel instance).
-   * @param {string=} ngMessagesMultiple|multiple when set, all messages will be displayed with true
-   *
-   * @example
-   * <example name="ngMessages-directive" module="ngMessagesExample"
-   *          deps="angular-messages.js"
-   *          animations="true" fixBase="true">
-   *   <file name="index.html">
-   *     <form name="myForm">
-   *       <label>
-   *         Enter your name:
-   *         <input type="text"
-   *                name="myName"
-   *                ng-model="name"
-   *                ng-minlength="5"
-   *                ng-maxlength="20"
-   *                required />
-   *       </label>
-   *       <pre>myForm.myName.$error = {{ myForm.myName.$error | json }}</pre>
-   *
-   *       <div ng-messages="myForm.myName.$error" style="color:maroon" role="alert">
-   *         <div ng-message="required">You did not enter a field</div>
-   *         <div ng-message="minlength">Your field is too short</div>
-   *         <div ng-message="maxlength">Your field is too long</div>
-   *       </div>
-   *     </form>
-   *   </file>
-   *   <file name="script.js">
-   *     angular.module('ngMessagesExample', ['ngMessages']);
-   *   </file>
-   * </example>
-   */
-  .directive('ngMessages', ['$animate', function($animate) {
-    var ACTIVE_CLASS = 'ng-active';
-    var INACTIVE_CLASS = 'ng-inactive';
-
-    return {
-      require: 'ngMessages',
-      restrict: 'AE',
-      controller: ['$element', '$scope', '$attrs', function NgMessagesCtrl($element, $scope, $attrs) {
-        var ctrl = this;
-        var latestKey = 0;
-        var nextAttachId = 0;
-
-        this.getAttachId = function getAttachId() { return nextAttachId++; };
-
-        var messages = this.messages = {};
-        var renderLater, cachedCollection;
-
-        this.render = function(collection) {
-          collection = collection || {};
-
-          renderLater = false;
-          cachedCollection = collection;
-
-          // this is true if the attribute is empty or if the attribute value is truthy
-          var multiple = isAttrTruthy($scope, $attrs.ngMessagesMultiple) ||
-                         isAttrTruthy($scope, $attrs.multiple);
-
-          var unmatchedMessages = [];
-          var matchedKeys = {};
-          var messageItem = ctrl.head;
-          var messageFound = false;
-          var totalMessages = 0;
-
-          // we use != instead of !== to allow for both undefined and null values
-          while (messageItem != null) {
-            totalMessages++;
-            var messageCtrl = messageItem.message;
-
-            var messageUsed = false;
-            if (!messageFound) {
-              forEach(collection, function(value, key) {
-                if (!messageUsed && truthy(value) && messageCtrl.test(key)) {
-                  // this is to prevent the same error name from showing up twice
-                  if (matchedKeys[key]) return;
-                  matchedKeys[key] = true;
-
-                  messageUsed = true;
-                  messageCtrl.attach();
-                }
-              });
-            }
-
-            if (messageUsed) {
-              // unless we want to display multiple messages then we should
-              // set a flag here to avoid displaying the next message in the list
-              messageFound = !multiple;
-            } else {
-              unmatchedMessages.push(messageCtrl);
-            }
-
-            messageItem = messageItem.next;
-          }
-
-          forEach(unmatchedMessages, function(messageCtrl) {
-            messageCtrl.detach();
-          });
-
-          if (unmatchedMessages.length !== totalMessages) {
-            $animate.setClass($element, ACTIVE_CLASS, INACTIVE_CLASS);
-          } else {
-            $animate.setClass($element, INACTIVE_CLASS, ACTIVE_CLASS);
-          }
-        };
-
-        $scope.$watchCollection($attrs.ngMessages || $attrs['for'], ctrl.render);
-
-        // If the element is destroyed, proactively destroy all the currently visible messages
-        $element.on('$destroy', function() {
-          forEach(messages, function(item) {
-            item.message.detach();
-          });
-        });
-
-        this.reRender = function() {
-          if (!renderLater) {
-            renderLater = true;
-            $scope.$evalAsync(function() {
-              if (renderLater && cachedCollection) {
-                ctrl.render(cachedCollection);
-              }
-            });
-          }
-        };
-
-        this.register = function(comment, messageCtrl) {
-          var nextKey = latestKey.toString();
-          messages[nextKey] = {
-            message: messageCtrl
-          };
-          insertMessageNode($element[0], comment, nextKey);
-          comment.$$ngMessageNode = nextKey;
-          latestKey++;
-
-          ctrl.reRender();
-        };
-
-        this.deregister = function(comment) {
-          var key = comment.$$ngMessageNode;
-          delete comment.$$ngMessageNode;
-          removeMessageNode($element[0], comment, key);
-          delete messages[key];
-          ctrl.reRender();
-        };
-
-        function findPreviousMessage(parent, comment) {
-          var prevNode = comment;
-          var parentLookup = [];
-
-          while (prevNode && prevNode !== parent) {
-            var prevKey = prevNode.$$ngMessageNode;
-            if (prevKey && prevKey.length) {
-              return messages[prevKey];
-            }
-
-            // dive deeper into the DOM and examine its children for any ngMessage
-            // comments that may be in an element that appears deeper in the list
-            if (prevNode.childNodes.length && parentLookup.indexOf(prevNode) === -1) {
-              parentLookup.push(prevNode);
-              prevNode = prevNode.childNodes[prevNode.childNodes.length - 1];
-            } else if (prevNode.previousSibling) {
-              prevNode = prevNode.previousSibling;
-            } else {
-              prevNode = prevNode.parentNode;
-              parentLookup.push(prevNode);
-            }
-          }
-        }
-
-        function insertMessageNode(parent, comment, key) {
-          var messageNode = messages[key];
-          if (!ctrl.head) {
-            ctrl.head = messageNode;
-          } else {
-            var match = findPreviousMessage(parent, comment);
-            if (match) {
-              messageNode.next = match.next;
-              match.next = messageNode;
-            } else {
-              messageNode.next = ctrl.head;
-              ctrl.head = messageNode;
-            }
-          }
-        }
-
-        function removeMessageNode(parent, comment, key) {
-          var messageNode = messages[key];
-
-          var match = findPreviousMessage(parent, comment);
-          if (match) {
-            match.next = messageNode.next;
-          } else {
-            ctrl.head = messageNode.next;
-          }
-        }
-      }]
-    };
-
-    function isAttrTruthy(scope, attr) {
-     return (isString(attr) && attr.length === 0) || //empty attribute
-            truthy(scope.$eval(attr));
-    }
-
-    function truthy(val) {
-      return isString(val) ? val.length : !!val;
-    }
-  }])
-
-  /**
-   * @ngdoc directive
-   * @name ngMessagesInclude
-   * @restrict AE
-   * @scope
-   *
-   * @description
-   * `ngMessagesInclude` is a directive with the purpose to import existing ngMessage template
-   * code from a remote template and place the downloaded template code into the exact spot
-   * that the ngMessagesInclude directive is placed within the ngMessages container. This allows
-   * for a series of pre-defined messages to be reused and also allows for the developer to
-   * determine what messages are overridden due to the placement of the ngMessagesInclude directive.
-   *
-   * @usage
-   * ```html
-   * <!-- using attribute directives -->
-   * <ANY ng-messages="expression" role="alert">
-   *   <ANY ng-messages-include="remoteTplString">...</ANY>
-   * </ANY>
-   *
-   * <!-- or by using element directives -->
-   * <ng-messages for="expression" role="alert">
-   *   <ng-messages-include src="expressionValue1">...</ng-messages-include>
-   * </ng-messages>
-   * ```
-   *
-   * {@link module:ngMessages Click here} to learn more about `ngMessages` and `ngMessage`.
-   *
-   * @param {string} ngMessagesInclude|src a string value corresponding to the remote template.
-   */
-  .directive('ngMessagesInclude',
-    ['$templateRequest', '$document', '$compile', function($templateRequest, $document, $compile) {
-
-    return {
-      restrict: 'AE',
-      require: '^^ngMessages', // we only require this for validation sake
-      link: function($scope, element, attrs) {
-        var src = attrs.ngMessagesInclude || attrs.src;
-        $templateRequest(src).then(function(html) {
-          if ($scope.$$destroyed) return;
-
-          if (isString(html) && !html.trim()) {
-            // Empty template - nothing to compile
-            replaceElementWithMarker(element, src);
-          } else {
-            // Non-empty template - compile and link
-            $compile(html)($scope, function(contents) {
-              element.after(contents);
-              replaceElementWithMarker(element, src);
-            });
-          }
-        });
-      }
-    };
-
-    // Helpers
-    function replaceElementWithMarker(element, src) {
-      // A comment marker is placed for debugging purposes
-      var comment = $compile.$$createComment ?
-          $compile.$$createComment('ngMessagesInclude', src) :
-          $document[0].createComment(' ngMessagesInclude: ' + src + ' ');
-      var marker = jqLite(comment);
-      element.after(marker);
-
-      // Don't pollute the DOM anymore by keeping an empty directive element
-      element.remove();
-    }
-  }])
-
-  /**
-   * @ngdoc directive
-   * @name ngMessage
-   * @restrict AE
-   * @scope
-   *
-   * @description
-   * `ngMessage` is a directive with the purpose to show and hide a particular message.
-   * For `ngMessage` to operate, a parent `ngMessages` directive on a parent DOM element
-   * must be situated since it determines which messages are visible based on the state
-   * of the provided key/value map that `ngMessages` listens on.
-   *
-   * More information about using `ngMessage` can be found in the
-   * {@link module:ngMessages `ngMessages` module documentation}.
-   *
-   * @usage
-   * ```html
-   * <!-- using attribute directives -->
-   * <ANY ng-messages="expression" role="alert">
-   *   <ANY ng-message="stringValue">...</ANY>
-   *   <ANY ng-message="stringValue1, stringValue2, ...">...</ANY>
-   * </ANY>
-   *
-   * <!-- or by using element directives -->
-   * <ng-messages for="expression" role="alert">
-   *   <ng-message when="stringValue">...</ng-message>
-   *   <ng-message when="stringValue1, stringValue2, ...">...</ng-message>
-   * </ng-messages>
-   * ```
-   *
-   * @param {expression} ngMessage|when a string value corresponding to the message key.
-   */
-  .directive('ngMessage', ngMessageDirectiveFactory())
-
-
-  /**
-   * @ngdoc directive
-   * @name ngMessageExp
-   * @restrict AE
-   * @priority 1
-   * @scope
-   *
-   * @description
-   * `ngMessageExp` is the same as {@link directive:ngMessage `ngMessage`}, but instead of a static
-   * value, it accepts an expression to be evaluated for the message key.
-   *
-   * @usage
-   * ```html
-   * <!-- using attribute directives -->
-   * <ANY ng-messages="expression">
-   *   <ANY ng-message-exp="expressionValue">...</ANY>
-   * </ANY>
-   *
-   * <!-- or by using element directives -->
-   * <ng-messages for="expression">
-   *   <ng-message when-exp="expressionValue">...</ng-message>
-   * </ng-messages>
-   * ```
-   *
-   * {@link module:ngMessages Click here} to learn more about `ngMessages` and `ngMessage`.
-   *
-   * @param {expression} ngMessageExp|whenExp an expression value corresponding to the message key.
-   */
-  .directive('ngMessageExp', ngMessageDirectiveFactory());
-
-function ngMessageDirectiveFactory() {
-  return ['$animate', function($animate) {
-    return {
-      restrict: 'AE',
-      transclude: 'element',
-      priority: 1, // must run before ngBind, otherwise the text is set on the comment
-      terminal: true,
-      require: '^^ngMessages',
-      link: function(scope, element, attrs, ngMessagesCtrl, $transclude) {
-        var commentNode = element[0];
-
-        var records;
-        var staticExp = attrs.ngMessage || attrs.when;
-        var dynamicExp = attrs.ngMessageExp || attrs.whenExp;
-        var assignRecords = function(items) {
-          records = items
-              ? (isArray(items)
-                  ? items
-                  : items.split(/[\s,]+/))
-              : null;
-          ngMessagesCtrl.reRender();
-        };
-
-        if (dynamicExp) {
-          assignRecords(scope.$eval(dynamicExp));
-          scope.$watchCollection(dynamicExp, assignRecords);
-        } else {
-          assignRecords(staticExp);
-        }
-
-        var currentElement, messageCtrl;
-        ngMessagesCtrl.register(commentNode, messageCtrl = {
-          test: function(name) {
-            return contains(records, name);
-          },
-          attach: function() {
-            if (!currentElement) {
-              $transclude(function(elm, newScope) {
-                $animate.enter(elm, null, element);
-                currentElement = elm;
-
-                // Each time we attach this node to a message we get a new id that we can match
-                // when we are destroying the node later.
-                var $$attachId = currentElement.$$attachId = ngMessagesCtrl.getAttachId();
-
-                // in the event that the element or a parent element is destroyed
-                // by another structural directive then it's time
-                // to deregister the message from the controller
-                currentElement.on('$destroy', function() {
-                  if (currentElement && currentElement.$$attachId === $$attachId) {
-                    ngMessagesCtrl.deregister(commentNode);
-                    messageCtrl.detach();
-                  }
-                  newScope.$destroy();
-                });
-              });
-            }
-          },
-          detach: function() {
-            if (currentElement) {
-              var elm = currentElement;
-              currentElement = null;
-              $animate.leave(elm);
-            }
-          }
-        });
-      }
-    };
-  }];
-
-  function contains(collection, key) {
-    if (collection) {
-      return isArray(collection)
-          ? collection.indexOf(key) >= 0
-          : collection.hasOwnProperty(key);
-    }
-  }
-}
-
-
-})(window, window.angular);
-
-},{}],7:[function(require,module,exports){
-require('./angular-messages');
-module.exports = 'ngMessages';
-
-},{"./angular-messages":6}],8:[function(require,module,exports){
-/**
- * @license AngularJS v1.6.4
- * (c) 2010-2017 Google, Inc. http://angularjs.org
- * License: MIT
- */
-(function(window, angular) {'use strict';
-
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  *     Any commits to this file should be reviewed with security in mind.  *
  *   Changes to this file can potentially create security vulnerabilities. *
@@ -6347,11 +5601,11 @@ angular.module('ngSanitize').filter('linky', ['$sanitize', function($sanitize) {
 
 })(window, window.angular);
 
-},{}],9:[function(require,module,exports){
+},{}],7:[function(require,module,exports){
 require('./angular-sanitize');
 module.exports = 'ngSanitize';
 
-},{"./angular-sanitize":8}],10:[function(require,module,exports){
+},{"./angular-sanitize":6}],8:[function(require,module,exports){
 /**
 @fileOverview
 
@@ -6431,7 +5685,7 @@ module.exports = 'ngSanitize';
 
 
 
-},{"angular":18,"sweetalert":11}],11:[function(require,module,exports){
+},{"angular":16,"sweetalert":9}],9:[function(require,module,exports){
 // SweetAlert
 // 2014 (c) - Tristan Edwards
 // github.com/t4t5/sweetalert
@@ -7252,7 +6506,7 @@ module.exports = 'ngSanitize';
 
 })(window, document);
 
-},{}],12:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 (function() {
   'use strict';
 
@@ -7762,12 +7016,12 @@ module.exports = 'ngSanitize';
 
 angular.module("toastr").run(["$templateCache", function($templateCache) {$templateCache.put("directives/progressbar/progressbar.html","<div class=\"toast-progress\"></div>\n");
 $templateCache.put("directives/toast/toast.html","<div class=\"{{toastClass}} {{toastType}}\" ng-click=\"tapToast()\">\n  <div ng-switch on=\"allowHtml\">\n    <div ng-switch-default ng-if=\"title\" class=\"{{titleClass}}\" aria-label=\"{{title}}\">{{title}}</div>\n    <div ng-switch-default class=\"{{messageClass}}\" aria-label=\"{{message}}\">{{message}}</div>\n    <div ng-switch-when=\"true\" ng-if=\"title\" class=\"{{titleClass}}\" ng-bind-html=\"title\"></div>\n    <div ng-switch-when=\"true\" class=\"{{messageClass}}\" ng-bind-html=\"message\"></div>\n  </div>\n  <progress-bar ng-if=\"progressBar\"></progress-bar>\n</div>\n");}]);
-},{}],13:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 require('./dist/angular-toastr.tpls.js');
 module.exports = 'toastr';
 
 
-},{"./dist/angular-toastr.tpls.js":12}],14:[function(require,module,exports){
+},{"./dist/angular-toastr.tpls.js":10}],12:[function(require,module,exports){
 /*
  * angular-ui-bootstrap
  * http://angular-ui.github.io/bootstrap/
@@ -15544,12 +14798,12 @@ angular.module('ui.bootstrap.datepickerPopup').run(function() {!angular.$$csp().
 angular.module('ui.bootstrap.tooltip').run(function() {!angular.$$csp().noInlineStyle && !angular.$$uibTooltipCss && angular.element(document).find('head').prepend('<style type="text/css">[uib-tooltip-popup].tooltip.top-left > .tooltip-arrow,[uib-tooltip-popup].tooltip.top-right > .tooltip-arrow,[uib-tooltip-popup].tooltip.bottom-left > .tooltip-arrow,[uib-tooltip-popup].tooltip.bottom-right > .tooltip-arrow,[uib-tooltip-popup].tooltip.left-top > .tooltip-arrow,[uib-tooltip-popup].tooltip.left-bottom > .tooltip-arrow,[uib-tooltip-popup].tooltip.right-top > .tooltip-arrow,[uib-tooltip-popup].tooltip.right-bottom > .tooltip-arrow,[uib-tooltip-html-popup].tooltip.top-left > .tooltip-arrow,[uib-tooltip-html-popup].tooltip.top-right > .tooltip-arrow,[uib-tooltip-html-popup].tooltip.bottom-left > .tooltip-arrow,[uib-tooltip-html-popup].tooltip.bottom-right > .tooltip-arrow,[uib-tooltip-html-popup].tooltip.left-top > .tooltip-arrow,[uib-tooltip-html-popup].tooltip.left-bottom > .tooltip-arrow,[uib-tooltip-html-popup].tooltip.right-top > .tooltip-arrow,[uib-tooltip-html-popup].tooltip.right-bottom > .tooltip-arrow,[uib-tooltip-template-popup].tooltip.top-left > .tooltip-arrow,[uib-tooltip-template-popup].tooltip.top-right > .tooltip-arrow,[uib-tooltip-template-popup].tooltip.bottom-left > .tooltip-arrow,[uib-tooltip-template-popup].tooltip.bottom-right > .tooltip-arrow,[uib-tooltip-template-popup].tooltip.left-top > .tooltip-arrow,[uib-tooltip-template-popup].tooltip.left-bottom > .tooltip-arrow,[uib-tooltip-template-popup].tooltip.right-top > .tooltip-arrow,[uib-tooltip-template-popup].tooltip.right-bottom > .tooltip-arrow,[uib-popover-popup].popover.top-left > .arrow,[uib-popover-popup].popover.top-right > .arrow,[uib-popover-popup].popover.bottom-left > .arrow,[uib-popover-popup].popover.bottom-right > .arrow,[uib-popover-popup].popover.left-top > .arrow,[uib-popover-popup].popover.left-bottom > .arrow,[uib-popover-popup].popover.right-top > .arrow,[uib-popover-popup].popover.right-bottom > .arrow,[uib-popover-html-popup].popover.top-left > .arrow,[uib-popover-html-popup].popover.top-right > .arrow,[uib-popover-html-popup].popover.bottom-left > .arrow,[uib-popover-html-popup].popover.bottom-right > .arrow,[uib-popover-html-popup].popover.left-top > .arrow,[uib-popover-html-popup].popover.left-bottom > .arrow,[uib-popover-html-popup].popover.right-top > .arrow,[uib-popover-html-popup].popover.right-bottom > .arrow,[uib-popover-template-popup].popover.top-left > .arrow,[uib-popover-template-popup].popover.top-right > .arrow,[uib-popover-template-popup].popover.bottom-left > .arrow,[uib-popover-template-popup].popover.bottom-right > .arrow,[uib-popover-template-popup].popover.left-top > .arrow,[uib-popover-template-popup].popover.left-bottom > .arrow,[uib-popover-template-popup].popover.right-top > .arrow,[uib-popover-template-popup].popover.right-bottom > .arrow{top:auto;bottom:auto;left:auto;right:auto;margin:0;}[uib-popover-popup].popover,[uib-popover-html-popup].popover,[uib-popover-template-popup].popover{display:block !important;}</style>'); angular.$$uibTooltipCss = true; });
 angular.module('ui.bootstrap.timepicker').run(function() {!angular.$$csp().noInlineStyle && !angular.$$uibTimepickerCss && angular.element(document).find('head').prepend('<style type="text/css">.uib-time input{width:50px;}</style>'); angular.$$uibTimepickerCss = true; });
 angular.module('ui.bootstrap.typeahead').run(function() {!angular.$$csp().noInlineStyle && !angular.$$uibTypeaheadCss && angular.element(document).find('head').prepend('<style type="text/css">[uib-typeahead-popup].dropdown-menu{display:block;}</style>'); angular.$$uibTypeaheadCss = true; });
-},{}],15:[function(require,module,exports){
+},{}],13:[function(require,module,exports){
 require('./dist/ui-bootstrap-tpls');
 
 module.exports = 'ui.bootstrap';
 
-},{"./dist/ui-bootstrap-tpls":14}],16:[function(require,module,exports){
+},{"./dist/ui-bootstrap-tpls":12}],14:[function(require,module,exports){
 /**
  * State-based routing for AngularJS
  * @version v0.3.2
@@ -20159,7 +19413,7 @@ angular.module('ui.router.state')
   .filter('isState', $IsStateFilter)
   .filter('includedByState', $IncludedByStateFilter);
 })(window, window.angular);
-},{}],17:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
 /**
  * @license AngularJS v1.6.4
  * (c) 2010-2017 Google, Inc. http://angularjs.org
@@ -53532,11 +52786,11 @@ $provide.value("$locale", {
 })(window);
 
 !window.angular.$$csp().noInlineStyle && window.angular.element(document.head).prepend('<style type="text/css">@charset "UTF-8";[ng\\:cloak],[ng-cloak],[data-ng-cloak],[x-ng-cloak],.ng-cloak,.x-ng-cloak,.ng-hide:not(.ng-hide-animate){display:none !important;}ng\\:form{display:block;}.ng-animate-shim{visibility:hidden;}.ng-anchor{position:absolute;}</style>');
-},{}],18:[function(require,module,exports){
+},{}],16:[function(require,module,exports){
 require('./angular');
 module.exports = angular;
 
-},{"./angular":17}],19:[function(require,module,exports){
+},{"./angular":15}],17:[function(require,module,exports){
 'use strict'
 
 exports.byteLength = byteLength
@@ -53572,22 +52826,22 @@ function placeHoldersCount (b64) {
 
 function byteLength (b64) {
   // base64 is 4/3 + up to two characters of the original data
-  return b64.length * 3 / 4 - placeHoldersCount(b64)
+  return (b64.length * 3 / 4) - placeHoldersCount(b64)
 }
 
 function toByteArray (b64) {
-  var i, j, l, tmp, placeHolders, arr
+  var i, l, tmp, placeHolders, arr
   var len = b64.length
   placeHolders = placeHoldersCount(b64)
 
-  arr = new Arr(len * 3 / 4 - placeHolders)
+  arr = new Arr((len * 3 / 4) - placeHolders)
 
   // if there are placeholders, only get up to the last complete 4 chars
   l = placeHolders > 0 ? len - 4 : len
 
   var L = 0
 
-  for (i = 0, j = 0; i < l; i += 4, j += 3) {
+  for (i = 0; i < l; i += 4) {
     tmp = (revLookup[b64.charCodeAt(i)] << 18) | (revLookup[b64.charCodeAt(i + 1)] << 12) | (revLookup[b64.charCodeAt(i + 2)] << 6) | revLookup[b64.charCodeAt(i + 3)]
     arr[L++] = (tmp >> 16) & 0xFF
     arr[L++] = (tmp >> 8) & 0xFF
@@ -53652,7 +52906,7 @@ function fromByteArray (uint8) {
   return parts.join('')
 }
 
-},{}],20:[function(require,module,exports){
+},{}],18:[function(require,module,exports){
 /*!
  * Bootstrap v3.3.7 (http://getbootstrap.com)
  * Copyright 2011-2016 Twitter, Inc.
@@ -56031,7 +55285,7 @@ if (typeof jQuery === 'undefined') {
 
 }(jQuery);
 
-},{}],21:[function(require,module,exports){
+},{}],19:[function(require,module,exports){
 (function (global){
 /*!
  * The buffer module from node.js, for the browser.
@@ -57824,7 +57078,7 @@ function isnan (val) {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"base64-js":19,"ieee754":22,"isarray":23}],22:[function(require,module,exports){
+},{"base64-js":17,"ieee754":20,"isarray":21}],20:[function(require,module,exports){
 exports.read = function (buffer, offset, isLE, mLen, nBytes) {
   var e, m
   var eLen = nBytes * 8 - mLen - 1
@@ -57910,14 +57164,14 @@ exports.write = function (buffer, value, offset, isLE, mLen, nBytes) {
   buffer[offset + i - d] |= s * 128
 }
 
-},{}],23:[function(require,module,exports){
+},{}],21:[function(require,module,exports){
 var toString = {}.toString;
 
 module.exports = Array.isArray || function (arr) {
   return toString.call(arr) == '[object Array]';
 };
 
-},{}],24:[function(require,module,exports){
+},{}],22:[function(require,module,exports){
 /*!
  * jQuery JavaScript Library v3.2.1
  * https://jquery.com/
@@ -68172,2464 +67426,7 @@ if ( !noGlobal ) {
 return jQuery;
 } );
 
-},{}],25:[function(require,module,exports){
-(function (global){
-/**
- * lodash (Custom Build) <https://lodash.com/>
- * Build: `lodash modularize exports="npm" -o ./`
- * Copyright jQuery Foundation and other contributors <https://jquery.org/>
- * Released under MIT license <https://lodash.com/license>
- * Based on Underscore.js 1.8.3 <http://underscorejs.org/LICENSE>
- * Copyright Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
- */
-
-/** Used as the size to enable large array optimizations. */
-var LARGE_ARRAY_SIZE = 200;
-
-/** Used as the `TypeError` message for "Functions" methods. */
-var FUNC_ERROR_TEXT = 'Expected a function';
-
-/** Used to stand-in for `undefined` hash values. */
-var HASH_UNDEFINED = '__lodash_hash_undefined__';
-
-/** Used to compose bitmasks for comparison styles. */
-var UNORDERED_COMPARE_FLAG = 1,
-    PARTIAL_COMPARE_FLAG = 2;
-
-/** Used as references for various `Number` constants. */
-var INFINITY = 1 / 0,
-    MAX_SAFE_INTEGER = 9007199254740991,
-    MAX_INTEGER = 1.7976931348623157e+308,
-    NAN = 0 / 0;
-
-/** `Object#toString` result references. */
-var argsTag = '[object Arguments]',
-    arrayTag = '[object Array]',
-    boolTag = '[object Boolean]',
-    dateTag = '[object Date]',
-    errorTag = '[object Error]',
-    funcTag = '[object Function]',
-    genTag = '[object GeneratorFunction]',
-    mapTag = '[object Map]',
-    numberTag = '[object Number]',
-    objectTag = '[object Object]',
-    promiseTag = '[object Promise]',
-    regexpTag = '[object RegExp]',
-    setTag = '[object Set]',
-    stringTag = '[object String]',
-    symbolTag = '[object Symbol]',
-    weakMapTag = '[object WeakMap]';
-
-var arrayBufferTag = '[object ArrayBuffer]',
-    dataViewTag = '[object DataView]',
-    float32Tag = '[object Float32Array]',
-    float64Tag = '[object Float64Array]',
-    int8Tag = '[object Int8Array]',
-    int16Tag = '[object Int16Array]',
-    int32Tag = '[object Int32Array]',
-    uint8Tag = '[object Uint8Array]',
-    uint8ClampedTag = '[object Uint8ClampedArray]',
-    uint16Tag = '[object Uint16Array]',
-    uint32Tag = '[object Uint32Array]';
-
-/** Used to match property names within property paths. */
-var reIsDeepProp = /\.|\[(?:[^[\]]*|(["'])(?:(?!\1)[^\\]|\\.)*?\1)\]/,
-    reIsPlainProp = /^\w*$/,
-    reLeadingDot = /^\./,
-    rePropName = /[^.[\]]+|\[(?:(-?\d+(?:\.\d+)?)|(["'])((?:(?!\2)[^\\]|\\.)*?)\2)\]|(?=(?:\.|\[\])(?:\.|\[\]|$))/g;
-
-/**
- * Used to match `RegExp`
- * [syntax characters](http://ecma-international.org/ecma-262/7.0/#sec-patterns).
- */
-var reRegExpChar = /[\\^$.*+?()[\]{}|]/g;
-
-/** Used to match leading and trailing whitespace. */
-var reTrim = /^\s+|\s+$/g;
-
-/** Used to match backslashes in property paths. */
-var reEscapeChar = /\\(\\)?/g;
-
-/** Used to detect bad signed hexadecimal string values. */
-var reIsBadHex = /^[-+]0x[0-9a-f]+$/i;
-
-/** Used to detect binary string values. */
-var reIsBinary = /^0b[01]+$/i;
-
-/** Used to detect host constructors (Safari). */
-var reIsHostCtor = /^\[object .+?Constructor\]$/;
-
-/** Used to detect octal string values. */
-var reIsOctal = /^0o[0-7]+$/i;
-
-/** Used to detect unsigned integer values. */
-var reIsUint = /^(?:0|[1-9]\d*)$/;
-
-/** Used to identify `toStringTag` values of typed arrays. */
-var typedArrayTags = {};
-typedArrayTags[float32Tag] = typedArrayTags[float64Tag] =
-typedArrayTags[int8Tag] = typedArrayTags[int16Tag] =
-typedArrayTags[int32Tag] = typedArrayTags[uint8Tag] =
-typedArrayTags[uint8ClampedTag] = typedArrayTags[uint16Tag] =
-typedArrayTags[uint32Tag] = true;
-typedArrayTags[argsTag] = typedArrayTags[arrayTag] =
-typedArrayTags[arrayBufferTag] = typedArrayTags[boolTag] =
-typedArrayTags[dataViewTag] = typedArrayTags[dateTag] =
-typedArrayTags[errorTag] = typedArrayTags[funcTag] =
-typedArrayTags[mapTag] = typedArrayTags[numberTag] =
-typedArrayTags[objectTag] = typedArrayTags[regexpTag] =
-typedArrayTags[setTag] = typedArrayTags[stringTag] =
-typedArrayTags[weakMapTag] = false;
-
-/** Built-in method references without a dependency on `root`. */
-var freeParseInt = parseInt;
-
-/** Detect free variable `global` from Node.js. */
-var freeGlobal = typeof global == 'object' && global && global.Object === Object && global;
-
-/** Detect free variable `self`. */
-var freeSelf = typeof self == 'object' && self && self.Object === Object && self;
-
-/** Used as a reference to the global object. */
-var root = freeGlobal || freeSelf || Function('return this')();
-
-/** Detect free variable `exports`. */
-var freeExports = typeof exports == 'object' && exports && !exports.nodeType && exports;
-
-/** Detect free variable `module`. */
-var freeModule = freeExports && typeof module == 'object' && module && !module.nodeType && module;
-
-/** Detect the popular CommonJS extension `module.exports`. */
-var moduleExports = freeModule && freeModule.exports === freeExports;
-
-/** Detect free variable `process` from Node.js. */
-var freeProcess = moduleExports && freeGlobal.process;
-
-/** Used to access faster Node.js helpers. */
-var nodeUtil = (function() {
-  try {
-    return freeProcess && freeProcess.binding('util');
-  } catch (e) {}
-}());
-
-/* Node.js helper references. */
-var nodeIsTypedArray = nodeUtil && nodeUtil.isTypedArray;
-
-/**
- * A specialized version of `_.some` for arrays without support for iteratee
- * shorthands.
- *
- * @private
- * @param {Array} [array] The array to iterate over.
- * @param {Function} predicate The function invoked per iteration.
- * @returns {boolean} Returns `true` if any element passes the predicate check,
- *  else `false`.
- */
-function arraySome(array, predicate) {
-  var index = -1,
-      length = array ? array.length : 0;
-
-  while (++index < length) {
-    if (predicate(array[index], index, array)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-/**
- * The base implementation of `_.findIndex` and `_.findLastIndex` without
- * support for iteratee shorthands.
- *
- * @private
- * @param {Array} array The array to inspect.
- * @param {Function} predicate The function invoked per iteration.
- * @param {number} fromIndex The index to search from.
- * @param {boolean} [fromRight] Specify iterating from right to left.
- * @returns {number} Returns the index of the matched value, else `-1`.
- */
-function baseFindIndex(array, predicate, fromIndex, fromRight) {
-  var length = array.length,
-      index = fromIndex + (fromRight ? 1 : -1);
-
-  while ((fromRight ? index-- : ++index < length)) {
-    if (predicate(array[index], index, array)) {
-      return index;
-    }
-  }
-  return -1;
-}
-
-/**
- * The base implementation of `_.property` without support for deep paths.
- *
- * @private
- * @param {string} key The key of the property to get.
- * @returns {Function} Returns the new accessor function.
- */
-function baseProperty(key) {
-  return function(object) {
-    return object == null ? undefined : object[key];
-  };
-}
-
-/**
- * The base implementation of `_.times` without support for iteratee shorthands
- * or max array length checks.
- *
- * @private
- * @param {number} n The number of times to invoke `iteratee`.
- * @param {Function} iteratee The function invoked per iteration.
- * @returns {Array} Returns the array of results.
- */
-function baseTimes(n, iteratee) {
-  var index = -1,
-      result = Array(n);
-
-  while (++index < n) {
-    result[index] = iteratee(index);
-  }
-  return result;
-}
-
-/**
- * The base implementation of `_.unary` without support for storing metadata.
- *
- * @private
- * @param {Function} func The function to cap arguments for.
- * @returns {Function} Returns the new capped function.
- */
-function baseUnary(func) {
-  return function(value) {
-    return func(value);
-  };
-}
-
-/**
- * Gets the value at `key` of `object`.
- *
- * @private
- * @param {Object} [object] The object to query.
- * @param {string} key The key of the property to get.
- * @returns {*} Returns the property value.
- */
-function getValue(object, key) {
-  return object == null ? undefined : object[key];
-}
-
-/**
- * Checks if `value` is a host object in IE < 9.
- *
- * @private
- * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is a host object, else `false`.
- */
-function isHostObject(value) {
-  // Many host objects are `Object` objects that can coerce to strings
-  // despite having improperly defined `toString` methods.
-  var result = false;
-  if (value != null && typeof value.toString != 'function') {
-    try {
-      result = !!(value + '');
-    } catch (e) {}
-  }
-  return result;
-}
-
-/**
- * Converts `map` to its key-value pairs.
- *
- * @private
- * @param {Object} map The map to convert.
- * @returns {Array} Returns the key-value pairs.
- */
-function mapToArray(map) {
-  var index = -1,
-      result = Array(map.size);
-
-  map.forEach(function(value, key) {
-    result[++index] = [key, value];
-  });
-  return result;
-}
-
-/**
- * Creates a unary function that invokes `func` with its argument transformed.
- *
- * @private
- * @param {Function} func The function to wrap.
- * @param {Function} transform The argument transform.
- * @returns {Function} Returns the new function.
- */
-function overArg(func, transform) {
-  return function(arg) {
-    return func(transform(arg));
-  };
-}
-
-/**
- * Converts `set` to an array of its values.
- *
- * @private
- * @param {Object} set The set to convert.
- * @returns {Array} Returns the values.
- */
-function setToArray(set) {
-  var index = -1,
-      result = Array(set.size);
-
-  set.forEach(function(value) {
-    result[++index] = value;
-  });
-  return result;
-}
-
-/** Used for built-in method references. */
-var arrayProto = Array.prototype,
-    funcProto = Function.prototype,
-    objectProto = Object.prototype;
-
-/** Used to detect overreaching core-js shims. */
-var coreJsData = root['__core-js_shared__'];
-
-/** Used to detect methods masquerading as native. */
-var maskSrcKey = (function() {
-  var uid = /[^.]+$/.exec(coreJsData && coreJsData.keys && coreJsData.keys.IE_PROTO || '');
-  return uid ? ('Symbol(src)_1.' + uid) : '';
-}());
-
-/** Used to resolve the decompiled source of functions. */
-var funcToString = funcProto.toString;
-
-/** Used to check objects for own properties. */
-var hasOwnProperty = objectProto.hasOwnProperty;
-
-/**
- * Used to resolve the
- * [`toStringTag`](http://ecma-international.org/ecma-262/7.0/#sec-object.prototype.tostring)
- * of values.
- */
-var objectToString = objectProto.toString;
-
-/** Used to detect if a method is native. */
-var reIsNative = RegExp('^' +
-  funcToString.call(hasOwnProperty).replace(reRegExpChar, '\\$&')
-  .replace(/hasOwnProperty|(function).*?(?=\\\()| for .+?(?=\\\])/g, '$1.*?') + '$'
-);
-
-/** Built-in value references. */
-var Symbol = root.Symbol,
-    Uint8Array = root.Uint8Array,
-    propertyIsEnumerable = objectProto.propertyIsEnumerable,
-    splice = arrayProto.splice;
-
-/* Built-in method references for those with the same name as other `lodash` methods. */
-var nativeKeys = overArg(Object.keys, Object),
-    nativeMax = Math.max;
-
-/* Built-in method references that are verified to be native. */
-var DataView = getNative(root, 'DataView'),
-    Map = getNative(root, 'Map'),
-    Promise = getNative(root, 'Promise'),
-    Set = getNative(root, 'Set'),
-    WeakMap = getNative(root, 'WeakMap'),
-    nativeCreate = getNative(Object, 'create');
-
-/** Used to detect maps, sets, and weakmaps. */
-var dataViewCtorString = toSource(DataView),
-    mapCtorString = toSource(Map),
-    promiseCtorString = toSource(Promise),
-    setCtorString = toSource(Set),
-    weakMapCtorString = toSource(WeakMap);
-
-/** Used to convert symbols to primitives and strings. */
-var symbolProto = Symbol ? Symbol.prototype : undefined,
-    symbolValueOf = symbolProto ? symbolProto.valueOf : undefined,
-    symbolToString = symbolProto ? symbolProto.toString : undefined;
-
-/**
- * Creates a hash object.
- *
- * @private
- * @constructor
- * @param {Array} [entries] The key-value pairs to cache.
- */
-function Hash(entries) {
-  var index = -1,
-      length = entries ? entries.length : 0;
-
-  this.clear();
-  while (++index < length) {
-    var entry = entries[index];
-    this.set(entry[0], entry[1]);
-  }
-}
-
-/**
- * Removes all key-value entries from the hash.
- *
- * @private
- * @name clear
- * @memberOf Hash
- */
-function hashClear() {
-  this.__data__ = nativeCreate ? nativeCreate(null) : {};
-}
-
-/**
- * Removes `key` and its value from the hash.
- *
- * @private
- * @name delete
- * @memberOf Hash
- * @param {Object} hash The hash to modify.
- * @param {string} key The key of the value to remove.
- * @returns {boolean} Returns `true` if the entry was removed, else `false`.
- */
-function hashDelete(key) {
-  return this.has(key) && delete this.__data__[key];
-}
-
-/**
- * Gets the hash value for `key`.
- *
- * @private
- * @name get
- * @memberOf Hash
- * @param {string} key The key of the value to get.
- * @returns {*} Returns the entry value.
- */
-function hashGet(key) {
-  var data = this.__data__;
-  if (nativeCreate) {
-    var result = data[key];
-    return result === HASH_UNDEFINED ? undefined : result;
-  }
-  return hasOwnProperty.call(data, key) ? data[key] : undefined;
-}
-
-/**
- * Checks if a hash value for `key` exists.
- *
- * @private
- * @name has
- * @memberOf Hash
- * @param {string} key The key of the entry to check.
- * @returns {boolean} Returns `true` if an entry for `key` exists, else `false`.
- */
-function hashHas(key) {
-  var data = this.__data__;
-  return nativeCreate ? data[key] !== undefined : hasOwnProperty.call(data, key);
-}
-
-/**
- * Sets the hash `key` to `value`.
- *
- * @private
- * @name set
- * @memberOf Hash
- * @param {string} key The key of the value to set.
- * @param {*} value The value to set.
- * @returns {Object} Returns the hash instance.
- */
-function hashSet(key, value) {
-  var data = this.__data__;
-  data[key] = (nativeCreate && value === undefined) ? HASH_UNDEFINED : value;
-  return this;
-}
-
-// Add methods to `Hash`.
-Hash.prototype.clear = hashClear;
-Hash.prototype['delete'] = hashDelete;
-Hash.prototype.get = hashGet;
-Hash.prototype.has = hashHas;
-Hash.prototype.set = hashSet;
-
-/**
- * Creates an list cache object.
- *
- * @private
- * @constructor
- * @param {Array} [entries] The key-value pairs to cache.
- */
-function ListCache(entries) {
-  var index = -1,
-      length = entries ? entries.length : 0;
-
-  this.clear();
-  while (++index < length) {
-    var entry = entries[index];
-    this.set(entry[0], entry[1]);
-  }
-}
-
-/**
- * Removes all key-value entries from the list cache.
- *
- * @private
- * @name clear
- * @memberOf ListCache
- */
-function listCacheClear() {
-  this.__data__ = [];
-}
-
-/**
- * Removes `key` and its value from the list cache.
- *
- * @private
- * @name delete
- * @memberOf ListCache
- * @param {string} key The key of the value to remove.
- * @returns {boolean} Returns `true` if the entry was removed, else `false`.
- */
-function listCacheDelete(key) {
-  var data = this.__data__,
-      index = assocIndexOf(data, key);
-
-  if (index < 0) {
-    return false;
-  }
-  var lastIndex = data.length - 1;
-  if (index == lastIndex) {
-    data.pop();
-  } else {
-    splice.call(data, index, 1);
-  }
-  return true;
-}
-
-/**
- * Gets the list cache value for `key`.
- *
- * @private
- * @name get
- * @memberOf ListCache
- * @param {string} key The key of the value to get.
- * @returns {*} Returns the entry value.
- */
-function listCacheGet(key) {
-  var data = this.__data__,
-      index = assocIndexOf(data, key);
-
-  return index < 0 ? undefined : data[index][1];
-}
-
-/**
- * Checks if a list cache value for `key` exists.
- *
- * @private
- * @name has
- * @memberOf ListCache
- * @param {string} key The key of the entry to check.
- * @returns {boolean} Returns `true` if an entry for `key` exists, else `false`.
- */
-function listCacheHas(key) {
-  return assocIndexOf(this.__data__, key) > -1;
-}
-
-/**
- * Sets the list cache `key` to `value`.
- *
- * @private
- * @name set
- * @memberOf ListCache
- * @param {string} key The key of the value to set.
- * @param {*} value The value to set.
- * @returns {Object} Returns the list cache instance.
- */
-function listCacheSet(key, value) {
-  var data = this.__data__,
-      index = assocIndexOf(data, key);
-
-  if (index < 0) {
-    data.push([key, value]);
-  } else {
-    data[index][1] = value;
-  }
-  return this;
-}
-
-// Add methods to `ListCache`.
-ListCache.prototype.clear = listCacheClear;
-ListCache.prototype['delete'] = listCacheDelete;
-ListCache.prototype.get = listCacheGet;
-ListCache.prototype.has = listCacheHas;
-ListCache.prototype.set = listCacheSet;
-
-/**
- * Creates a map cache object to store key-value pairs.
- *
- * @private
- * @constructor
- * @param {Array} [entries] The key-value pairs to cache.
- */
-function MapCache(entries) {
-  var index = -1,
-      length = entries ? entries.length : 0;
-
-  this.clear();
-  while (++index < length) {
-    var entry = entries[index];
-    this.set(entry[0], entry[1]);
-  }
-}
-
-/**
- * Removes all key-value entries from the map.
- *
- * @private
- * @name clear
- * @memberOf MapCache
- */
-function mapCacheClear() {
-  this.__data__ = {
-    'hash': new Hash,
-    'map': new (Map || ListCache),
-    'string': new Hash
-  };
-}
-
-/**
- * Removes `key` and its value from the map.
- *
- * @private
- * @name delete
- * @memberOf MapCache
- * @param {string} key The key of the value to remove.
- * @returns {boolean} Returns `true` if the entry was removed, else `false`.
- */
-function mapCacheDelete(key) {
-  return getMapData(this, key)['delete'](key);
-}
-
-/**
- * Gets the map value for `key`.
- *
- * @private
- * @name get
- * @memberOf MapCache
- * @param {string} key The key of the value to get.
- * @returns {*} Returns the entry value.
- */
-function mapCacheGet(key) {
-  return getMapData(this, key).get(key);
-}
-
-/**
- * Checks if a map value for `key` exists.
- *
- * @private
- * @name has
- * @memberOf MapCache
- * @param {string} key The key of the entry to check.
- * @returns {boolean} Returns `true` if an entry for `key` exists, else `false`.
- */
-function mapCacheHas(key) {
-  return getMapData(this, key).has(key);
-}
-
-/**
- * Sets the map `key` to `value`.
- *
- * @private
- * @name set
- * @memberOf MapCache
- * @param {string} key The key of the value to set.
- * @param {*} value The value to set.
- * @returns {Object} Returns the map cache instance.
- */
-function mapCacheSet(key, value) {
-  getMapData(this, key).set(key, value);
-  return this;
-}
-
-// Add methods to `MapCache`.
-MapCache.prototype.clear = mapCacheClear;
-MapCache.prototype['delete'] = mapCacheDelete;
-MapCache.prototype.get = mapCacheGet;
-MapCache.prototype.has = mapCacheHas;
-MapCache.prototype.set = mapCacheSet;
-
-/**
- *
- * Creates an array cache object to store unique values.
- *
- * @private
- * @constructor
- * @param {Array} [values] The values to cache.
- */
-function SetCache(values) {
-  var index = -1,
-      length = values ? values.length : 0;
-
-  this.__data__ = new MapCache;
-  while (++index < length) {
-    this.add(values[index]);
-  }
-}
-
-/**
- * Adds `value` to the array cache.
- *
- * @private
- * @name add
- * @memberOf SetCache
- * @alias push
- * @param {*} value The value to cache.
- * @returns {Object} Returns the cache instance.
- */
-function setCacheAdd(value) {
-  this.__data__.set(value, HASH_UNDEFINED);
-  return this;
-}
-
-/**
- * Checks if `value` is in the array cache.
- *
- * @private
- * @name has
- * @memberOf SetCache
- * @param {*} value The value to search for.
- * @returns {number} Returns `true` if `value` is found, else `false`.
- */
-function setCacheHas(value) {
-  return this.__data__.has(value);
-}
-
-// Add methods to `SetCache`.
-SetCache.prototype.add = SetCache.prototype.push = setCacheAdd;
-SetCache.prototype.has = setCacheHas;
-
-/**
- * Creates a stack cache object to store key-value pairs.
- *
- * @private
- * @constructor
- * @param {Array} [entries] The key-value pairs to cache.
- */
-function Stack(entries) {
-  this.__data__ = new ListCache(entries);
-}
-
-/**
- * Removes all key-value entries from the stack.
- *
- * @private
- * @name clear
- * @memberOf Stack
- */
-function stackClear() {
-  this.__data__ = new ListCache;
-}
-
-/**
- * Removes `key` and its value from the stack.
- *
- * @private
- * @name delete
- * @memberOf Stack
- * @param {string} key The key of the value to remove.
- * @returns {boolean} Returns `true` if the entry was removed, else `false`.
- */
-function stackDelete(key) {
-  return this.__data__['delete'](key);
-}
-
-/**
- * Gets the stack value for `key`.
- *
- * @private
- * @name get
- * @memberOf Stack
- * @param {string} key The key of the value to get.
- * @returns {*} Returns the entry value.
- */
-function stackGet(key) {
-  return this.__data__.get(key);
-}
-
-/**
- * Checks if a stack value for `key` exists.
- *
- * @private
- * @name has
- * @memberOf Stack
- * @param {string} key The key of the entry to check.
- * @returns {boolean} Returns `true` if an entry for `key` exists, else `false`.
- */
-function stackHas(key) {
-  return this.__data__.has(key);
-}
-
-/**
- * Sets the stack `key` to `value`.
- *
- * @private
- * @name set
- * @memberOf Stack
- * @param {string} key The key of the value to set.
- * @param {*} value The value to set.
- * @returns {Object} Returns the stack cache instance.
- */
-function stackSet(key, value) {
-  var cache = this.__data__;
-  if (cache instanceof ListCache) {
-    var pairs = cache.__data__;
-    if (!Map || (pairs.length < LARGE_ARRAY_SIZE - 1)) {
-      pairs.push([key, value]);
-      return this;
-    }
-    cache = this.__data__ = new MapCache(pairs);
-  }
-  cache.set(key, value);
-  return this;
-}
-
-// Add methods to `Stack`.
-Stack.prototype.clear = stackClear;
-Stack.prototype['delete'] = stackDelete;
-Stack.prototype.get = stackGet;
-Stack.prototype.has = stackHas;
-Stack.prototype.set = stackSet;
-
-/**
- * Creates an array of the enumerable property names of the array-like `value`.
- *
- * @private
- * @param {*} value The value to query.
- * @param {boolean} inherited Specify returning inherited property names.
- * @returns {Array} Returns the array of property names.
- */
-function arrayLikeKeys(value, inherited) {
-  // Safari 8.1 makes `arguments.callee` enumerable in strict mode.
-  // Safari 9 makes `arguments.length` enumerable in strict mode.
-  var result = (isArray(value) || isArguments(value))
-    ? baseTimes(value.length, String)
-    : [];
-
-  var length = result.length,
-      skipIndexes = !!length;
-
-  for (var key in value) {
-    if ((inherited || hasOwnProperty.call(value, key)) &&
-        !(skipIndexes && (key == 'length' || isIndex(key, length)))) {
-      result.push(key);
-    }
-  }
-  return result;
-}
-
-/**
- * Gets the index at which the `key` is found in `array` of key-value pairs.
- *
- * @private
- * @param {Array} array The array to inspect.
- * @param {*} key The key to search for.
- * @returns {number} Returns the index of the matched value, else `-1`.
- */
-function assocIndexOf(array, key) {
-  var length = array.length;
-  while (length--) {
-    if (eq(array[length][0], key)) {
-      return length;
-    }
-  }
-  return -1;
-}
-
-/**
- * The base implementation of `_.get` without support for default values.
- *
- * @private
- * @param {Object} object The object to query.
- * @param {Array|string} path The path of the property to get.
- * @returns {*} Returns the resolved value.
- */
-function baseGet(object, path) {
-  path = isKey(path, object) ? [path] : castPath(path);
-
-  var index = 0,
-      length = path.length;
-
-  while (object != null && index < length) {
-    object = object[toKey(path[index++])];
-  }
-  return (index && index == length) ? object : undefined;
-}
-
-/**
- * The base implementation of `getTag`.
- *
- * @private
- * @param {*} value The value to query.
- * @returns {string} Returns the `toStringTag`.
- */
-function baseGetTag(value) {
-  return objectToString.call(value);
-}
-
-/**
- * The base implementation of `_.hasIn` without support for deep paths.
- *
- * @private
- * @param {Object} [object] The object to query.
- * @param {Array|string} key The key to check.
- * @returns {boolean} Returns `true` if `key` exists, else `false`.
- */
-function baseHasIn(object, key) {
-  return object != null && key in Object(object);
-}
-
-/**
- * The base implementation of `_.isEqual` which supports partial comparisons
- * and tracks traversed objects.
- *
- * @private
- * @param {*} value The value to compare.
- * @param {*} other The other value to compare.
- * @param {Function} [customizer] The function to customize comparisons.
- * @param {boolean} [bitmask] The bitmask of comparison flags.
- *  The bitmask may be composed of the following flags:
- *     1 - Unordered comparison
- *     2 - Partial comparison
- * @param {Object} [stack] Tracks traversed `value` and `other` objects.
- * @returns {boolean} Returns `true` if the values are equivalent, else `false`.
- */
-function baseIsEqual(value, other, customizer, bitmask, stack) {
-  if (value === other) {
-    return true;
-  }
-  if (value == null || other == null || (!isObject(value) && !isObjectLike(other))) {
-    return value !== value && other !== other;
-  }
-  return baseIsEqualDeep(value, other, baseIsEqual, customizer, bitmask, stack);
-}
-
-/**
- * A specialized version of `baseIsEqual` for arrays and objects which performs
- * deep comparisons and tracks traversed objects enabling objects with circular
- * references to be compared.
- *
- * @private
- * @param {Object} object The object to compare.
- * @param {Object} other The other object to compare.
- * @param {Function} equalFunc The function to determine equivalents of values.
- * @param {Function} [customizer] The function to customize comparisons.
- * @param {number} [bitmask] The bitmask of comparison flags. See `baseIsEqual`
- *  for more details.
- * @param {Object} [stack] Tracks traversed `object` and `other` objects.
- * @returns {boolean} Returns `true` if the objects are equivalent, else `false`.
- */
-function baseIsEqualDeep(object, other, equalFunc, customizer, bitmask, stack) {
-  var objIsArr = isArray(object),
-      othIsArr = isArray(other),
-      objTag = arrayTag,
-      othTag = arrayTag;
-
-  if (!objIsArr) {
-    objTag = getTag(object);
-    objTag = objTag == argsTag ? objectTag : objTag;
-  }
-  if (!othIsArr) {
-    othTag = getTag(other);
-    othTag = othTag == argsTag ? objectTag : othTag;
-  }
-  var objIsObj = objTag == objectTag && !isHostObject(object),
-      othIsObj = othTag == objectTag && !isHostObject(other),
-      isSameTag = objTag == othTag;
-
-  if (isSameTag && !objIsObj) {
-    stack || (stack = new Stack);
-    return (objIsArr || isTypedArray(object))
-      ? equalArrays(object, other, equalFunc, customizer, bitmask, stack)
-      : equalByTag(object, other, objTag, equalFunc, customizer, bitmask, stack);
-  }
-  if (!(bitmask & PARTIAL_COMPARE_FLAG)) {
-    var objIsWrapped = objIsObj && hasOwnProperty.call(object, '__wrapped__'),
-        othIsWrapped = othIsObj && hasOwnProperty.call(other, '__wrapped__');
-
-    if (objIsWrapped || othIsWrapped) {
-      var objUnwrapped = objIsWrapped ? object.value() : object,
-          othUnwrapped = othIsWrapped ? other.value() : other;
-
-      stack || (stack = new Stack);
-      return equalFunc(objUnwrapped, othUnwrapped, customizer, bitmask, stack);
-    }
-  }
-  if (!isSameTag) {
-    return false;
-  }
-  stack || (stack = new Stack);
-  return equalObjects(object, other, equalFunc, customizer, bitmask, stack);
-}
-
-/**
- * The base implementation of `_.isMatch` without support for iteratee shorthands.
- *
- * @private
- * @param {Object} object The object to inspect.
- * @param {Object} source The object of property values to match.
- * @param {Array} matchData The property names, values, and compare flags to match.
- * @param {Function} [customizer] The function to customize comparisons.
- * @returns {boolean} Returns `true` if `object` is a match, else `false`.
- */
-function baseIsMatch(object, source, matchData, customizer) {
-  var index = matchData.length,
-      length = index,
-      noCustomizer = !customizer;
-
-  if (object == null) {
-    return !length;
-  }
-  object = Object(object);
-  while (index--) {
-    var data = matchData[index];
-    if ((noCustomizer && data[2])
-          ? data[1] !== object[data[0]]
-          : !(data[0] in object)
-        ) {
-      return false;
-    }
-  }
-  while (++index < length) {
-    data = matchData[index];
-    var key = data[0],
-        objValue = object[key],
-        srcValue = data[1];
-
-    if (noCustomizer && data[2]) {
-      if (objValue === undefined && !(key in object)) {
-        return false;
-      }
-    } else {
-      var stack = new Stack;
-      if (customizer) {
-        var result = customizer(objValue, srcValue, key, object, source, stack);
-      }
-      if (!(result === undefined
-            ? baseIsEqual(srcValue, objValue, customizer, UNORDERED_COMPARE_FLAG | PARTIAL_COMPARE_FLAG, stack)
-            : result
-          )) {
-        return false;
-      }
-    }
-  }
-  return true;
-}
-
-/**
- * The base implementation of `_.isNative` without bad shim checks.
- *
- * @private
- * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is a native function,
- *  else `false`.
- */
-function baseIsNative(value) {
-  if (!isObject(value) || isMasked(value)) {
-    return false;
-  }
-  var pattern = (isFunction(value) || isHostObject(value)) ? reIsNative : reIsHostCtor;
-  return pattern.test(toSource(value));
-}
-
-/**
- * The base implementation of `_.isTypedArray` without Node.js optimizations.
- *
- * @private
- * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is a typed array, else `false`.
- */
-function baseIsTypedArray(value) {
-  return isObjectLike(value) &&
-    isLength(value.length) && !!typedArrayTags[objectToString.call(value)];
-}
-
-/**
- * The base implementation of `_.iteratee`.
- *
- * @private
- * @param {*} [value=_.identity] The value to convert to an iteratee.
- * @returns {Function} Returns the iteratee.
- */
-function baseIteratee(value) {
-  // Don't store the `typeof` result in a variable to avoid a JIT bug in Safari 9.
-  // See https://bugs.webkit.org/show_bug.cgi?id=156034 for more details.
-  if (typeof value == 'function') {
-    return value;
-  }
-  if (value == null) {
-    return identity;
-  }
-  if (typeof value == 'object') {
-    return isArray(value)
-      ? baseMatchesProperty(value[0], value[1])
-      : baseMatches(value);
-  }
-  return property(value);
-}
-
-/**
- * The base implementation of `_.keys` which doesn't treat sparse arrays as dense.
- *
- * @private
- * @param {Object} object The object to query.
- * @returns {Array} Returns the array of property names.
- */
-function baseKeys(object) {
-  if (!isPrototype(object)) {
-    return nativeKeys(object);
-  }
-  var result = [];
-  for (var key in Object(object)) {
-    if (hasOwnProperty.call(object, key) && key != 'constructor') {
-      result.push(key);
-    }
-  }
-  return result;
-}
-
-/**
- * The base implementation of `_.matches` which doesn't clone `source`.
- *
- * @private
- * @param {Object} source The object of property values to match.
- * @returns {Function} Returns the new spec function.
- */
-function baseMatches(source) {
-  var matchData = getMatchData(source);
-  if (matchData.length == 1 && matchData[0][2]) {
-    return matchesStrictComparable(matchData[0][0], matchData[0][1]);
-  }
-  return function(object) {
-    return object === source || baseIsMatch(object, source, matchData);
-  };
-}
-
-/**
- * The base implementation of `_.matchesProperty` which doesn't clone `srcValue`.
- *
- * @private
- * @param {string} path The path of the property to get.
- * @param {*} srcValue The value to match.
- * @returns {Function} Returns the new spec function.
- */
-function baseMatchesProperty(path, srcValue) {
-  if (isKey(path) && isStrictComparable(srcValue)) {
-    return matchesStrictComparable(toKey(path), srcValue);
-  }
-  return function(object) {
-    var objValue = get(object, path);
-    return (objValue === undefined && objValue === srcValue)
-      ? hasIn(object, path)
-      : baseIsEqual(srcValue, objValue, undefined, UNORDERED_COMPARE_FLAG | PARTIAL_COMPARE_FLAG);
-  };
-}
-
-/**
- * A specialized version of `baseProperty` which supports deep paths.
- *
- * @private
- * @param {Array|string} path The path of the property to get.
- * @returns {Function} Returns the new accessor function.
- */
-function basePropertyDeep(path) {
-  return function(object) {
-    return baseGet(object, path);
-  };
-}
-
-/**
- * The base implementation of `_.toString` which doesn't convert nullish
- * values to empty strings.
- *
- * @private
- * @param {*} value The value to process.
- * @returns {string} Returns the string.
- */
-function baseToString(value) {
-  // Exit early for strings to avoid a performance hit in some environments.
-  if (typeof value == 'string') {
-    return value;
-  }
-  if (isSymbol(value)) {
-    return symbolToString ? symbolToString.call(value) : '';
-  }
-  var result = (value + '');
-  return (result == '0' && (1 / value) == -INFINITY) ? '-0' : result;
-}
-
-/**
- * Casts `value` to a path array if it's not one.
- *
- * @private
- * @param {*} value The value to inspect.
- * @returns {Array} Returns the cast property path array.
- */
-function castPath(value) {
-  return isArray(value) ? value : stringToPath(value);
-}
-
-/**
- * Creates a `_.find` or `_.findLast` function.
- *
- * @private
- * @param {Function} findIndexFunc The function to find the collection index.
- * @returns {Function} Returns the new find function.
- */
-function createFind(findIndexFunc) {
-  return function(collection, predicate, fromIndex) {
-    var iterable = Object(collection);
-    if (!isArrayLike(collection)) {
-      var iteratee = baseIteratee(predicate, 3);
-      collection = keys(collection);
-      predicate = function(key) { return iteratee(iterable[key], key, iterable); };
-    }
-    var index = findIndexFunc(collection, predicate, fromIndex);
-    return index > -1 ? iterable[iteratee ? collection[index] : index] : undefined;
-  };
-}
-
-/**
- * A specialized version of `baseIsEqualDeep` for arrays with support for
- * partial deep comparisons.
- *
- * @private
- * @param {Array} array The array to compare.
- * @param {Array} other The other array to compare.
- * @param {Function} equalFunc The function to determine equivalents of values.
- * @param {Function} customizer The function to customize comparisons.
- * @param {number} bitmask The bitmask of comparison flags. See `baseIsEqual`
- *  for more details.
- * @param {Object} stack Tracks traversed `array` and `other` objects.
- * @returns {boolean} Returns `true` if the arrays are equivalent, else `false`.
- */
-function equalArrays(array, other, equalFunc, customizer, bitmask, stack) {
-  var isPartial = bitmask & PARTIAL_COMPARE_FLAG,
-      arrLength = array.length,
-      othLength = other.length;
-
-  if (arrLength != othLength && !(isPartial && othLength > arrLength)) {
-    return false;
-  }
-  // Assume cyclic values are equal.
-  var stacked = stack.get(array);
-  if (stacked && stack.get(other)) {
-    return stacked == other;
-  }
-  var index = -1,
-      result = true,
-      seen = (bitmask & UNORDERED_COMPARE_FLAG) ? new SetCache : undefined;
-
-  stack.set(array, other);
-  stack.set(other, array);
-
-  // Ignore non-index properties.
-  while (++index < arrLength) {
-    var arrValue = array[index],
-        othValue = other[index];
-
-    if (customizer) {
-      var compared = isPartial
-        ? customizer(othValue, arrValue, index, other, array, stack)
-        : customizer(arrValue, othValue, index, array, other, stack);
-    }
-    if (compared !== undefined) {
-      if (compared) {
-        continue;
-      }
-      result = false;
-      break;
-    }
-    // Recursively compare arrays (susceptible to call stack limits).
-    if (seen) {
-      if (!arraySome(other, function(othValue, othIndex) {
-            if (!seen.has(othIndex) &&
-                (arrValue === othValue || equalFunc(arrValue, othValue, customizer, bitmask, stack))) {
-              return seen.add(othIndex);
-            }
-          })) {
-        result = false;
-        break;
-      }
-    } else if (!(
-          arrValue === othValue ||
-            equalFunc(arrValue, othValue, customizer, bitmask, stack)
-        )) {
-      result = false;
-      break;
-    }
-  }
-  stack['delete'](array);
-  stack['delete'](other);
-  return result;
-}
-
-/**
- * A specialized version of `baseIsEqualDeep` for comparing objects of
- * the same `toStringTag`.
- *
- * **Note:** This function only supports comparing values with tags of
- * `Boolean`, `Date`, `Error`, `Number`, `RegExp`, or `String`.
- *
- * @private
- * @param {Object} object The object to compare.
- * @param {Object} other The other object to compare.
- * @param {string} tag The `toStringTag` of the objects to compare.
- * @param {Function} equalFunc The function to determine equivalents of values.
- * @param {Function} customizer The function to customize comparisons.
- * @param {number} bitmask The bitmask of comparison flags. See `baseIsEqual`
- *  for more details.
- * @param {Object} stack Tracks traversed `object` and `other` objects.
- * @returns {boolean} Returns `true` if the objects are equivalent, else `false`.
- */
-function equalByTag(object, other, tag, equalFunc, customizer, bitmask, stack) {
-  switch (tag) {
-    case dataViewTag:
-      if ((object.byteLength != other.byteLength) ||
-          (object.byteOffset != other.byteOffset)) {
-        return false;
-      }
-      object = object.buffer;
-      other = other.buffer;
-
-    case arrayBufferTag:
-      if ((object.byteLength != other.byteLength) ||
-          !equalFunc(new Uint8Array(object), new Uint8Array(other))) {
-        return false;
-      }
-      return true;
-
-    case boolTag:
-    case dateTag:
-    case numberTag:
-      // Coerce booleans to `1` or `0` and dates to milliseconds.
-      // Invalid dates are coerced to `NaN`.
-      return eq(+object, +other);
-
-    case errorTag:
-      return object.name == other.name && object.message == other.message;
-
-    case regexpTag:
-    case stringTag:
-      // Coerce regexes to strings and treat strings, primitives and objects,
-      // as equal. See http://www.ecma-international.org/ecma-262/7.0/#sec-regexp.prototype.tostring
-      // for more details.
-      return object == (other + '');
-
-    case mapTag:
-      var convert = mapToArray;
-
-    case setTag:
-      var isPartial = bitmask & PARTIAL_COMPARE_FLAG;
-      convert || (convert = setToArray);
-
-      if (object.size != other.size && !isPartial) {
-        return false;
-      }
-      // Assume cyclic values are equal.
-      var stacked = stack.get(object);
-      if (stacked) {
-        return stacked == other;
-      }
-      bitmask |= UNORDERED_COMPARE_FLAG;
-
-      // Recursively compare objects (susceptible to call stack limits).
-      stack.set(object, other);
-      var result = equalArrays(convert(object), convert(other), equalFunc, customizer, bitmask, stack);
-      stack['delete'](object);
-      return result;
-
-    case symbolTag:
-      if (symbolValueOf) {
-        return symbolValueOf.call(object) == symbolValueOf.call(other);
-      }
-  }
-  return false;
-}
-
-/**
- * A specialized version of `baseIsEqualDeep` for objects with support for
- * partial deep comparisons.
- *
- * @private
- * @param {Object} object The object to compare.
- * @param {Object} other The other object to compare.
- * @param {Function} equalFunc The function to determine equivalents of values.
- * @param {Function} customizer The function to customize comparisons.
- * @param {number} bitmask The bitmask of comparison flags. See `baseIsEqual`
- *  for more details.
- * @param {Object} stack Tracks traversed `object` and `other` objects.
- * @returns {boolean} Returns `true` if the objects are equivalent, else `false`.
- */
-function equalObjects(object, other, equalFunc, customizer, bitmask, stack) {
-  var isPartial = bitmask & PARTIAL_COMPARE_FLAG,
-      objProps = keys(object),
-      objLength = objProps.length,
-      othProps = keys(other),
-      othLength = othProps.length;
-
-  if (objLength != othLength && !isPartial) {
-    return false;
-  }
-  var index = objLength;
-  while (index--) {
-    var key = objProps[index];
-    if (!(isPartial ? key in other : hasOwnProperty.call(other, key))) {
-      return false;
-    }
-  }
-  // Assume cyclic values are equal.
-  var stacked = stack.get(object);
-  if (stacked && stack.get(other)) {
-    return stacked == other;
-  }
-  var result = true;
-  stack.set(object, other);
-  stack.set(other, object);
-
-  var skipCtor = isPartial;
-  while (++index < objLength) {
-    key = objProps[index];
-    var objValue = object[key],
-        othValue = other[key];
-
-    if (customizer) {
-      var compared = isPartial
-        ? customizer(othValue, objValue, key, other, object, stack)
-        : customizer(objValue, othValue, key, object, other, stack);
-    }
-    // Recursively compare objects (susceptible to call stack limits).
-    if (!(compared === undefined
-          ? (objValue === othValue || equalFunc(objValue, othValue, customizer, bitmask, stack))
-          : compared
-        )) {
-      result = false;
-      break;
-    }
-    skipCtor || (skipCtor = key == 'constructor');
-  }
-  if (result && !skipCtor) {
-    var objCtor = object.constructor,
-        othCtor = other.constructor;
-
-    // Non `Object` object instances with different constructors are not equal.
-    if (objCtor != othCtor &&
-        ('constructor' in object && 'constructor' in other) &&
-        !(typeof objCtor == 'function' && objCtor instanceof objCtor &&
-          typeof othCtor == 'function' && othCtor instanceof othCtor)) {
-      result = false;
-    }
-  }
-  stack['delete'](object);
-  stack['delete'](other);
-  return result;
-}
-
-/**
- * Gets the data for `map`.
- *
- * @private
- * @param {Object} map The map to query.
- * @param {string} key The reference key.
- * @returns {*} Returns the map data.
- */
-function getMapData(map, key) {
-  var data = map.__data__;
-  return isKeyable(key)
-    ? data[typeof key == 'string' ? 'string' : 'hash']
-    : data.map;
-}
-
-/**
- * Gets the property names, values, and compare flags of `object`.
- *
- * @private
- * @param {Object} object The object to query.
- * @returns {Array} Returns the match data of `object`.
- */
-function getMatchData(object) {
-  var result = keys(object),
-      length = result.length;
-
-  while (length--) {
-    var key = result[length],
-        value = object[key];
-
-    result[length] = [key, value, isStrictComparable(value)];
-  }
-  return result;
-}
-
-/**
- * Gets the native function at `key` of `object`.
- *
- * @private
- * @param {Object} object The object to query.
- * @param {string} key The key of the method to get.
- * @returns {*} Returns the function if it's native, else `undefined`.
- */
-function getNative(object, key) {
-  var value = getValue(object, key);
-  return baseIsNative(value) ? value : undefined;
-}
-
-/**
- * Gets the `toStringTag` of `value`.
- *
- * @private
- * @param {*} value The value to query.
- * @returns {string} Returns the `toStringTag`.
- */
-var getTag = baseGetTag;
-
-// Fallback for data views, maps, sets, and weak maps in IE 11,
-// for data views in Edge < 14, and promises in Node.js.
-if ((DataView && getTag(new DataView(new ArrayBuffer(1))) != dataViewTag) ||
-    (Map && getTag(new Map) != mapTag) ||
-    (Promise && getTag(Promise.resolve()) != promiseTag) ||
-    (Set && getTag(new Set) != setTag) ||
-    (WeakMap && getTag(new WeakMap) != weakMapTag)) {
-  getTag = function(value) {
-    var result = objectToString.call(value),
-        Ctor = result == objectTag ? value.constructor : undefined,
-        ctorString = Ctor ? toSource(Ctor) : undefined;
-
-    if (ctorString) {
-      switch (ctorString) {
-        case dataViewCtorString: return dataViewTag;
-        case mapCtorString: return mapTag;
-        case promiseCtorString: return promiseTag;
-        case setCtorString: return setTag;
-        case weakMapCtorString: return weakMapTag;
-      }
-    }
-    return result;
-  };
-}
-
-/**
- * Checks if `path` exists on `object`.
- *
- * @private
- * @param {Object} object The object to query.
- * @param {Array|string} path The path to check.
- * @param {Function} hasFunc The function to check properties.
- * @returns {boolean} Returns `true` if `path` exists, else `false`.
- */
-function hasPath(object, path, hasFunc) {
-  path = isKey(path, object) ? [path] : castPath(path);
-
-  var result,
-      index = -1,
-      length = path.length;
-
-  while (++index < length) {
-    var key = toKey(path[index]);
-    if (!(result = object != null && hasFunc(object, key))) {
-      break;
-    }
-    object = object[key];
-  }
-  if (result) {
-    return result;
-  }
-  var length = object ? object.length : 0;
-  return !!length && isLength(length) && isIndex(key, length) &&
-    (isArray(object) || isArguments(object));
-}
-
-/**
- * Checks if `value` is a valid array-like index.
- *
- * @private
- * @param {*} value The value to check.
- * @param {number} [length=MAX_SAFE_INTEGER] The upper bounds of a valid index.
- * @returns {boolean} Returns `true` if `value` is a valid index, else `false`.
- */
-function isIndex(value, length) {
-  length = length == null ? MAX_SAFE_INTEGER : length;
-  return !!length &&
-    (typeof value == 'number' || reIsUint.test(value)) &&
-    (value > -1 && value % 1 == 0 && value < length);
-}
-
-/**
- * Checks if `value` is a property name and not a property path.
- *
- * @private
- * @param {*} value The value to check.
- * @param {Object} [object] The object to query keys on.
- * @returns {boolean} Returns `true` if `value` is a property name, else `false`.
- */
-function isKey(value, object) {
-  if (isArray(value)) {
-    return false;
-  }
-  var type = typeof value;
-  if (type == 'number' || type == 'symbol' || type == 'boolean' ||
-      value == null || isSymbol(value)) {
-    return true;
-  }
-  return reIsPlainProp.test(value) || !reIsDeepProp.test(value) ||
-    (object != null && value in Object(object));
-}
-
-/**
- * Checks if `value` is suitable for use as unique object key.
- *
- * @private
- * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is suitable, else `false`.
- */
-function isKeyable(value) {
-  var type = typeof value;
-  return (type == 'string' || type == 'number' || type == 'symbol' || type == 'boolean')
-    ? (value !== '__proto__')
-    : (value === null);
-}
-
-/**
- * Checks if `func` has its source masked.
- *
- * @private
- * @param {Function} func The function to check.
- * @returns {boolean} Returns `true` if `func` is masked, else `false`.
- */
-function isMasked(func) {
-  return !!maskSrcKey && (maskSrcKey in func);
-}
-
-/**
- * Checks if `value` is likely a prototype object.
- *
- * @private
- * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is a prototype, else `false`.
- */
-function isPrototype(value) {
-  var Ctor = value && value.constructor,
-      proto = (typeof Ctor == 'function' && Ctor.prototype) || objectProto;
-
-  return value === proto;
-}
-
-/**
- * Checks if `value` is suitable for strict equality comparisons, i.e. `===`.
- *
- * @private
- * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` if suitable for strict
- *  equality comparisons, else `false`.
- */
-function isStrictComparable(value) {
-  return value === value && !isObject(value);
-}
-
-/**
- * A specialized version of `matchesProperty` for source values suitable
- * for strict equality comparisons, i.e. `===`.
- *
- * @private
- * @param {string} key The key of the property to get.
- * @param {*} srcValue The value to match.
- * @returns {Function} Returns the new spec function.
- */
-function matchesStrictComparable(key, srcValue) {
-  return function(object) {
-    if (object == null) {
-      return false;
-    }
-    return object[key] === srcValue &&
-      (srcValue !== undefined || (key in Object(object)));
-  };
-}
-
-/**
- * Converts `string` to a property path array.
- *
- * @private
- * @param {string} string The string to convert.
- * @returns {Array} Returns the property path array.
- */
-var stringToPath = memoize(function(string) {
-  string = toString(string);
-
-  var result = [];
-  if (reLeadingDot.test(string)) {
-    result.push('');
-  }
-  string.replace(rePropName, function(match, number, quote, string) {
-    result.push(quote ? string.replace(reEscapeChar, '$1') : (number || match));
-  });
-  return result;
-});
-
-/**
- * Converts `value` to a string key if it's not a string or symbol.
- *
- * @private
- * @param {*} value The value to inspect.
- * @returns {string|symbol} Returns the key.
- */
-function toKey(value) {
-  if (typeof value == 'string' || isSymbol(value)) {
-    return value;
-  }
-  var result = (value + '');
-  return (result == '0' && (1 / value) == -INFINITY) ? '-0' : result;
-}
-
-/**
- * Converts `func` to its source code.
- *
- * @private
- * @param {Function} func The function to process.
- * @returns {string} Returns the source code.
- */
-function toSource(func) {
-  if (func != null) {
-    try {
-      return funcToString.call(func);
-    } catch (e) {}
-    try {
-      return (func + '');
-    } catch (e) {}
-  }
-  return '';
-}
-
-/**
- * This method is like `_.find` except that it returns the index of the first
- * element `predicate` returns truthy for instead of the element itself.
- *
- * @static
- * @memberOf _
- * @since 1.1.0
- * @category Array
- * @param {Array} array The array to inspect.
- * @param {Function} [predicate=_.identity]
- *  The function invoked per iteration.
- * @param {number} [fromIndex=0] The index to search from.
- * @returns {number} Returns the index of the found element, else `-1`.
- * @example
- *
- * var users = [
- *   { 'user': 'barney',  'active': false },
- *   { 'user': 'fred',    'active': false },
- *   { 'user': 'pebbles', 'active': true }
- * ];
- *
- * _.findIndex(users, function(o) { return o.user == 'barney'; });
- * // => 0
- *
- * // The `_.matches` iteratee shorthand.
- * _.findIndex(users, { 'user': 'fred', 'active': false });
- * // => 1
- *
- * // The `_.matchesProperty` iteratee shorthand.
- * _.findIndex(users, ['active', false]);
- * // => 0
- *
- * // The `_.property` iteratee shorthand.
- * _.findIndex(users, 'active');
- * // => 2
- */
-function findIndex(array, predicate, fromIndex) {
-  var length = array ? array.length : 0;
-  if (!length) {
-    return -1;
-  }
-  var index = fromIndex == null ? 0 : toInteger(fromIndex);
-  if (index < 0) {
-    index = nativeMax(length + index, 0);
-  }
-  return baseFindIndex(array, baseIteratee(predicate, 3), index);
-}
-
-/**
- * Iterates over elements of `collection`, returning the first element
- * `predicate` returns truthy for. The predicate is invoked with three
- * arguments: (value, index|key, collection).
- *
- * @static
- * @memberOf _
- * @since 0.1.0
- * @category Collection
- * @param {Array|Object} collection The collection to inspect.
- * @param {Function} [predicate=_.identity]
- *  The function invoked per iteration.
- * @param {number} [fromIndex=0] The index to search from.
- * @returns {*} Returns the matched element, else `undefined`.
- * @example
- *
- * var users = [
- *   { 'user': 'barney',  'age': 36, 'active': true },
- *   { 'user': 'fred',    'age': 40, 'active': false },
- *   { 'user': 'pebbles', 'age': 1,  'active': true }
- * ];
- *
- * _.find(users, function(o) { return o.age < 40; });
- * // => object for 'barney'
- *
- * // The `_.matches` iteratee shorthand.
- * _.find(users, { 'age': 1, 'active': true });
- * // => object for 'pebbles'
- *
- * // The `_.matchesProperty` iteratee shorthand.
- * _.find(users, ['active', false]);
- * // => object for 'fred'
- *
- * // The `_.property` iteratee shorthand.
- * _.find(users, 'active');
- * // => object for 'barney'
- */
-var find = createFind(findIndex);
-
-/**
- * Creates a function that memoizes the result of `func`. If `resolver` is
- * provided, it determines the cache key for storing the result based on the
- * arguments provided to the memoized function. By default, the first argument
- * provided to the memoized function is used as the map cache key. The `func`
- * is invoked with the `this` binding of the memoized function.
- *
- * **Note:** The cache is exposed as the `cache` property on the memoized
- * function. Its creation may be customized by replacing the `_.memoize.Cache`
- * constructor with one whose instances implement the
- * [`Map`](http://ecma-international.org/ecma-262/7.0/#sec-properties-of-the-map-prototype-object)
- * method interface of `delete`, `get`, `has`, and `set`.
- *
- * @static
- * @memberOf _
- * @since 0.1.0
- * @category Function
- * @param {Function} func The function to have its output memoized.
- * @param {Function} [resolver] The function to resolve the cache key.
- * @returns {Function} Returns the new memoized function.
- * @example
- *
- * var object = { 'a': 1, 'b': 2 };
- * var other = { 'c': 3, 'd': 4 };
- *
- * var values = _.memoize(_.values);
- * values(object);
- * // => [1, 2]
- *
- * values(other);
- * // => [3, 4]
- *
- * object.a = 2;
- * values(object);
- * // => [1, 2]
- *
- * // Modify the result cache.
- * values.cache.set(object, ['a', 'b']);
- * values(object);
- * // => ['a', 'b']
- *
- * // Replace `_.memoize.Cache`.
- * _.memoize.Cache = WeakMap;
- */
-function memoize(func, resolver) {
-  if (typeof func != 'function' || (resolver && typeof resolver != 'function')) {
-    throw new TypeError(FUNC_ERROR_TEXT);
-  }
-  var memoized = function() {
-    var args = arguments,
-        key = resolver ? resolver.apply(this, args) : args[0],
-        cache = memoized.cache;
-
-    if (cache.has(key)) {
-      return cache.get(key);
-    }
-    var result = func.apply(this, args);
-    memoized.cache = cache.set(key, result);
-    return result;
-  };
-  memoized.cache = new (memoize.Cache || MapCache);
-  return memoized;
-}
-
-// Assign cache to `_.memoize`.
-memoize.Cache = MapCache;
-
-/**
- * Performs a
- * [`SameValueZero`](http://ecma-international.org/ecma-262/7.0/#sec-samevaluezero)
- * comparison between two values to determine if they are equivalent.
- *
- * @static
- * @memberOf _
- * @since 4.0.0
- * @category Lang
- * @param {*} value The value to compare.
- * @param {*} other The other value to compare.
- * @returns {boolean} Returns `true` if the values are equivalent, else `false`.
- * @example
- *
- * var object = { 'a': 1 };
- * var other = { 'a': 1 };
- *
- * _.eq(object, object);
- * // => true
- *
- * _.eq(object, other);
- * // => false
- *
- * _.eq('a', 'a');
- * // => true
- *
- * _.eq('a', Object('a'));
- * // => false
- *
- * _.eq(NaN, NaN);
- * // => true
- */
-function eq(value, other) {
-  return value === other || (value !== value && other !== other);
-}
-
-/**
- * Checks if `value` is likely an `arguments` object.
- *
- * @static
- * @memberOf _
- * @since 0.1.0
- * @category Lang
- * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is an `arguments` object,
- *  else `false`.
- * @example
- *
- * _.isArguments(function() { return arguments; }());
- * // => true
- *
- * _.isArguments([1, 2, 3]);
- * // => false
- */
-function isArguments(value) {
-  // Safari 8.1 makes `arguments.callee` enumerable in strict mode.
-  return isArrayLikeObject(value) && hasOwnProperty.call(value, 'callee') &&
-    (!propertyIsEnumerable.call(value, 'callee') || objectToString.call(value) == argsTag);
-}
-
-/**
- * Checks if `value` is classified as an `Array` object.
- *
- * @static
- * @memberOf _
- * @since 0.1.0
- * @category Lang
- * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is an array, else `false`.
- * @example
- *
- * _.isArray([1, 2, 3]);
- * // => true
- *
- * _.isArray(document.body.children);
- * // => false
- *
- * _.isArray('abc');
- * // => false
- *
- * _.isArray(_.noop);
- * // => false
- */
-var isArray = Array.isArray;
-
-/**
- * Checks if `value` is array-like. A value is considered array-like if it's
- * not a function and has a `value.length` that's an integer greater than or
- * equal to `0` and less than or equal to `Number.MAX_SAFE_INTEGER`.
- *
- * @static
- * @memberOf _
- * @since 4.0.0
- * @category Lang
- * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is array-like, else `false`.
- * @example
- *
- * _.isArrayLike([1, 2, 3]);
- * // => true
- *
- * _.isArrayLike(document.body.children);
- * // => true
- *
- * _.isArrayLike('abc');
- * // => true
- *
- * _.isArrayLike(_.noop);
- * // => false
- */
-function isArrayLike(value) {
-  return value != null && isLength(value.length) && !isFunction(value);
-}
-
-/**
- * This method is like `_.isArrayLike` except that it also checks if `value`
- * is an object.
- *
- * @static
- * @memberOf _
- * @since 4.0.0
- * @category Lang
- * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is an array-like object,
- *  else `false`.
- * @example
- *
- * _.isArrayLikeObject([1, 2, 3]);
- * // => true
- *
- * _.isArrayLikeObject(document.body.children);
- * // => true
- *
- * _.isArrayLikeObject('abc');
- * // => false
- *
- * _.isArrayLikeObject(_.noop);
- * // => false
- */
-function isArrayLikeObject(value) {
-  return isObjectLike(value) && isArrayLike(value);
-}
-
-/**
- * Checks if `value` is classified as a `Function` object.
- *
- * @static
- * @memberOf _
- * @since 0.1.0
- * @category Lang
- * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is a function, else `false`.
- * @example
- *
- * _.isFunction(_);
- * // => true
- *
- * _.isFunction(/abc/);
- * // => false
- */
-function isFunction(value) {
-  // The use of `Object#toString` avoids issues with the `typeof` operator
-  // in Safari 8-9 which returns 'object' for typed array and other constructors.
-  var tag = isObject(value) ? objectToString.call(value) : '';
-  return tag == funcTag || tag == genTag;
-}
-
-/**
- * Checks if `value` is a valid array-like length.
- *
- * **Note:** This method is loosely based on
- * [`ToLength`](http://ecma-international.org/ecma-262/7.0/#sec-tolength).
- *
- * @static
- * @memberOf _
- * @since 4.0.0
- * @category Lang
- * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is a valid length, else `false`.
- * @example
- *
- * _.isLength(3);
- * // => true
- *
- * _.isLength(Number.MIN_VALUE);
- * // => false
- *
- * _.isLength(Infinity);
- * // => false
- *
- * _.isLength('3');
- * // => false
- */
-function isLength(value) {
-  return typeof value == 'number' &&
-    value > -1 && value % 1 == 0 && value <= MAX_SAFE_INTEGER;
-}
-
-/**
- * Checks if `value` is the
- * [language type](http://www.ecma-international.org/ecma-262/7.0/#sec-ecmascript-language-types)
- * of `Object`. (e.g. arrays, functions, objects, regexes, `new Number(0)`, and `new String('')`)
- *
- * @static
- * @memberOf _
- * @since 0.1.0
- * @category Lang
- * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is an object, else `false`.
- * @example
- *
- * _.isObject({});
- * // => true
- *
- * _.isObject([1, 2, 3]);
- * // => true
- *
- * _.isObject(_.noop);
- * // => true
- *
- * _.isObject(null);
- * // => false
- */
-function isObject(value) {
-  var type = typeof value;
-  return !!value && (type == 'object' || type == 'function');
-}
-
-/**
- * Checks if `value` is object-like. A value is object-like if it's not `null`
- * and has a `typeof` result of "object".
- *
- * @static
- * @memberOf _
- * @since 4.0.0
- * @category Lang
- * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is object-like, else `false`.
- * @example
- *
- * _.isObjectLike({});
- * // => true
- *
- * _.isObjectLike([1, 2, 3]);
- * // => true
- *
- * _.isObjectLike(_.noop);
- * // => false
- *
- * _.isObjectLike(null);
- * // => false
- */
-function isObjectLike(value) {
-  return !!value && typeof value == 'object';
-}
-
-/**
- * Checks if `value` is classified as a `Symbol` primitive or object.
- *
- * @static
- * @memberOf _
- * @since 4.0.0
- * @category Lang
- * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is a symbol, else `false`.
- * @example
- *
- * _.isSymbol(Symbol.iterator);
- * // => true
- *
- * _.isSymbol('abc');
- * // => false
- */
-function isSymbol(value) {
-  return typeof value == 'symbol' ||
-    (isObjectLike(value) && objectToString.call(value) == symbolTag);
-}
-
-/**
- * Checks if `value` is classified as a typed array.
- *
- * @static
- * @memberOf _
- * @since 3.0.0
- * @category Lang
- * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is a typed array, else `false`.
- * @example
- *
- * _.isTypedArray(new Uint8Array);
- * // => true
- *
- * _.isTypedArray([]);
- * // => false
- */
-var isTypedArray = nodeIsTypedArray ? baseUnary(nodeIsTypedArray) : baseIsTypedArray;
-
-/**
- * Converts `value` to a finite number.
- *
- * @static
- * @memberOf _
- * @since 4.12.0
- * @category Lang
- * @param {*} value The value to convert.
- * @returns {number} Returns the converted number.
- * @example
- *
- * _.toFinite(3.2);
- * // => 3.2
- *
- * _.toFinite(Number.MIN_VALUE);
- * // => 5e-324
- *
- * _.toFinite(Infinity);
- * // => 1.7976931348623157e+308
- *
- * _.toFinite('3.2');
- * // => 3.2
- */
-function toFinite(value) {
-  if (!value) {
-    return value === 0 ? value : 0;
-  }
-  value = toNumber(value);
-  if (value === INFINITY || value === -INFINITY) {
-    var sign = (value < 0 ? -1 : 1);
-    return sign * MAX_INTEGER;
-  }
-  return value === value ? value : 0;
-}
-
-/**
- * Converts `value` to an integer.
- *
- * **Note:** This method is loosely based on
- * [`ToInteger`](http://www.ecma-international.org/ecma-262/7.0/#sec-tointeger).
- *
- * @static
- * @memberOf _
- * @since 4.0.0
- * @category Lang
- * @param {*} value The value to convert.
- * @returns {number} Returns the converted integer.
- * @example
- *
- * _.toInteger(3.2);
- * // => 3
- *
- * _.toInteger(Number.MIN_VALUE);
- * // => 0
- *
- * _.toInteger(Infinity);
- * // => 1.7976931348623157e+308
- *
- * _.toInteger('3.2');
- * // => 3
- */
-function toInteger(value) {
-  var result = toFinite(value),
-      remainder = result % 1;
-
-  return result === result ? (remainder ? result - remainder : result) : 0;
-}
-
-/**
- * Converts `value` to a number.
- *
- * @static
- * @memberOf _
- * @since 4.0.0
- * @category Lang
- * @param {*} value The value to process.
- * @returns {number} Returns the number.
- * @example
- *
- * _.toNumber(3.2);
- * // => 3.2
- *
- * _.toNumber(Number.MIN_VALUE);
- * // => 5e-324
- *
- * _.toNumber(Infinity);
- * // => Infinity
- *
- * _.toNumber('3.2');
- * // => 3.2
- */
-function toNumber(value) {
-  if (typeof value == 'number') {
-    return value;
-  }
-  if (isSymbol(value)) {
-    return NAN;
-  }
-  if (isObject(value)) {
-    var other = typeof value.valueOf == 'function' ? value.valueOf() : value;
-    value = isObject(other) ? (other + '') : other;
-  }
-  if (typeof value != 'string') {
-    return value === 0 ? value : +value;
-  }
-  value = value.replace(reTrim, '');
-  var isBinary = reIsBinary.test(value);
-  return (isBinary || reIsOctal.test(value))
-    ? freeParseInt(value.slice(2), isBinary ? 2 : 8)
-    : (reIsBadHex.test(value) ? NAN : +value);
-}
-
-/**
- * Converts `value` to a string. An empty string is returned for `null`
- * and `undefined` values. The sign of `-0` is preserved.
- *
- * @static
- * @memberOf _
- * @since 4.0.0
- * @category Lang
- * @param {*} value The value to process.
- * @returns {string} Returns the string.
- * @example
- *
- * _.toString(null);
- * // => ''
- *
- * _.toString(-0);
- * // => '-0'
- *
- * _.toString([1, 2, 3]);
- * // => '1,2,3'
- */
-function toString(value) {
-  return value == null ? '' : baseToString(value);
-}
-
-/**
- * Gets the value at `path` of `object`. If the resolved value is
- * `undefined`, the `defaultValue` is returned in its place.
- *
- * @static
- * @memberOf _
- * @since 3.7.0
- * @category Object
- * @param {Object} object The object to query.
- * @param {Array|string} path The path of the property to get.
- * @param {*} [defaultValue] The value returned for `undefined` resolved values.
- * @returns {*} Returns the resolved value.
- * @example
- *
- * var object = { 'a': [{ 'b': { 'c': 3 } }] };
- *
- * _.get(object, 'a[0].b.c');
- * // => 3
- *
- * _.get(object, ['a', '0', 'b', 'c']);
- * // => 3
- *
- * _.get(object, 'a.b.c', 'default');
- * // => 'default'
- */
-function get(object, path, defaultValue) {
-  var result = object == null ? undefined : baseGet(object, path);
-  return result === undefined ? defaultValue : result;
-}
-
-/**
- * Checks if `path` is a direct or inherited property of `object`.
- *
- * @static
- * @memberOf _
- * @since 4.0.0
- * @category Object
- * @param {Object} object The object to query.
- * @param {Array|string} path The path to check.
- * @returns {boolean} Returns `true` if `path` exists, else `false`.
- * @example
- *
- * var object = _.create({ 'a': _.create({ 'b': 2 }) });
- *
- * _.hasIn(object, 'a');
- * // => true
- *
- * _.hasIn(object, 'a.b');
- * // => true
- *
- * _.hasIn(object, ['a', 'b']);
- * // => true
- *
- * _.hasIn(object, 'b');
- * // => false
- */
-function hasIn(object, path) {
-  return object != null && hasPath(object, path, baseHasIn);
-}
-
-/**
- * Creates an array of the own enumerable property names of `object`.
- *
- * **Note:** Non-object values are coerced to objects. See the
- * [ES spec](http://ecma-international.org/ecma-262/7.0/#sec-object.keys)
- * for more details.
- *
- * @static
- * @since 0.1.0
- * @memberOf _
- * @category Object
- * @param {Object} object The object to query.
- * @returns {Array} Returns the array of property names.
- * @example
- *
- * function Foo() {
- *   this.a = 1;
- *   this.b = 2;
- * }
- *
- * Foo.prototype.c = 3;
- *
- * _.keys(new Foo);
- * // => ['a', 'b'] (iteration order is not guaranteed)
- *
- * _.keys('hi');
- * // => ['0', '1']
- */
-function keys(object) {
-  return isArrayLike(object) ? arrayLikeKeys(object) : baseKeys(object);
-}
-
-/**
- * This method returns the first argument it receives.
- *
- * @static
- * @since 0.1.0
- * @memberOf _
- * @category Util
- * @param {*} value Any value.
- * @returns {*} Returns `value`.
- * @example
- *
- * var object = { 'a': 1 };
- *
- * console.log(_.identity(object) === object);
- * // => true
- */
-function identity(value) {
-  return value;
-}
-
-/**
- * Creates a function that returns the value at `path` of a given object.
- *
- * @static
- * @memberOf _
- * @since 2.4.0
- * @category Util
- * @param {Array|string} path The path of the property to get.
- * @returns {Function} Returns the new accessor function.
- * @example
- *
- * var objects = [
- *   { 'a': { 'b': 2 } },
- *   { 'a': { 'b': 1 } }
- * ];
- *
- * _.map(objects, _.property('a.b'));
- * // => [2, 1]
- *
- * _.map(_.sortBy(objects, _.property(['a', 'b'])), 'a.b');
- * // => [1, 2]
- */
-function property(path) {
-  return isKey(path) ? baseProperty(toKey(path)) : basePropertyDeep(path);
-}
-
-module.exports = find;
-
-}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],26:[function(require,module,exports){
+},{}],23:[function(require,module,exports){
 (function (global){
 /**
  * @license
@@ -87717,7433 +84514,7 @@ module.exports = find;
 }.call(this));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],27:[function(require,module,exports){
-/**!
- * AngularJS file upload directives and services. Supports: file upload/drop/paste, resume, cancel/abort,
- * progress, resize, thumbnail, preview, validation and CORS
- * FileAPI Flash shim for old browsers not supporting FormData
- * @author  Danial  <danial.farid@gmail.com>
- * @version 12.2.13
- */
-
-(function () {
-  /** @namespace FileAPI.noContentTimeout */
-
-  function patchXHR(fnName, newFn) {
-    window.XMLHttpRequest.prototype[fnName] = newFn(window.XMLHttpRequest.prototype[fnName]);
-  }
-
-  function redefineProp(xhr, prop, fn) {
-    try {
-      Object.defineProperty(xhr, prop, {get: fn});
-    } catch (e) {/*ignore*/
-    }
-  }
-
-  if (!window.FileAPI) {
-    window.FileAPI = {};
-  }
-
-  if (!window.XMLHttpRequest) {
-    throw 'AJAX is not supported. XMLHttpRequest is not defined.';
-  }
-
-  FileAPI.shouldLoad = !window.FormData || FileAPI.forceLoad;
-  if (FileAPI.shouldLoad) {
-    var initializeUploadListener = function (xhr) {
-      if (!xhr.__listeners) {
-        if (!xhr.upload) xhr.upload = {};
-        xhr.__listeners = [];
-        var origAddEventListener = xhr.upload.addEventListener;
-        xhr.upload.addEventListener = function (t, fn) {
-          xhr.__listeners[t] = fn;
-          if (origAddEventListener) origAddEventListener.apply(this, arguments);
-        };
-      }
-    };
-
-    patchXHR('open', function (orig) {
-      return function (m, url, b) {
-        initializeUploadListener(this);
-        this.__url = url;
-        try {
-          orig.apply(this, [m, url, b]);
-        } catch (e) {
-          if (e.message.indexOf('Access is denied') > -1) {
-            this.__origError = e;
-            orig.apply(this, [m, '_fix_for_ie_crossdomain__', b]);
-          }
-        }
-      };
-    });
-
-    patchXHR('getResponseHeader', function (orig) {
-      return function (h) {
-        return this.__fileApiXHR && this.__fileApiXHR.getResponseHeader ? this.__fileApiXHR.getResponseHeader(h) : (orig == null ? null : orig.apply(this, [h]));
-      };
-    });
-
-    patchXHR('getAllResponseHeaders', function (orig) {
-      return function () {
-        return this.__fileApiXHR && this.__fileApiXHR.getAllResponseHeaders ? this.__fileApiXHR.getAllResponseHeaders() : (orig == null ? null : orig.apply(this));
-      };
-    });
-
-    patchXHR('abort', function (orig) {
-      return function () {
-        return this.__fileApiXHR && this.__fileApiXHR.abort ? this.__fileApiXHR.abort() : (orig == null ? null : orig.apply(this));
-      };
-    });
-
-    patchXHR('setRequestHeader', function (orig) {
-      return function (header, value) {
-        if (header === '__setXHR_') {
-          initializeUploadListener(this);
-          var val = value(this);
-          // fix for angular < 1.2.0
-          if (val instanceof Function) {
-            val(this);
-          }
-        } else {
-          this.__requestHeaders = this.__requestHeaders || {};
-          this.__requestHeaders[header] = value;
-          orig.apply(this, arguments);
-        }
-      };
-    });
-
-    patchXHR('send', function (orig) {
-      return function () {
-        var xhr = this;
-        if (arguments[0] && arguments[0].__isFileAPIShim) {
-          var formData = arguments[0];
-          var config = {
-            url: xhr.__url,
-            jsonp: false, //removes the callback form param
-            cache: true, //removes the ?fileapiXXX in the url
-            complete: function (err, fileApiXHR) {
-              if (err && angular.isString(err) && err.indexOf('#2174') !== -1) {
-                // this error seems to be fine the file is being uploaded properly.
-                err = null;
-              }
-              xhr.__completed = true;
-              if (!err && xhr.__listeners.load)
-                xhr.__listeners.load({
-                  type: 'load',
-                  loaded: xhr.__loaded,
-                  total: xhr.__total,
-                  target: xhr,
-                  lengthComputable: true
-                });
-              if (!err && xhr.__listeners.loadend)
-                xhr.__listeners.loadend({
-                  type: 'loadend',
-                  loaded: xhr.__loaded,
-                  total: xhr.__total,
-                  target: xhr,
-                  lengthComputable: true
-                });
-              if (err === 'abort' && xhr.__listeners.abort)
-                xhr.__listeners.abort({
-                  type: 'abort',
-                  loaded: xhr.__loaded,
-                  total: xhr.__total,
-                  target: xhr,
-                  lengthComputable: true
-                });
-              if (fileApiXHR.status !== undefined) redefineProp(xhr, 'status', function () {
-                return (fileApiXHR.status === 0 && err && err !== 'abort') ? 500 : fileApiXHR.status;
-              });
-              if (fileApiXHR.statusText !== undefined) redefineProp(xhr, 'statusText', function () {
-                return fileApiXHR.statusText;
-              });
-              redefineProp(xhr, 'readyState', function () {
-                return 4;
-              });
-              if (fileApiXHR.response !== undefined) redefineProp(xhr, 'response', function () {
-                return fileApiXHR.response;
-              });
-              var resp = fileApiXHR.responseText || (err && fileApiXHR.status === 0 && err !== 'abort' ? err : undefined);
-              redefineProp(xhr, 'responseText', function () {
-                return resp;
-              });
-              redefineProp(xhr, 'response', function () {
-                return resp;
-              });
-              if (err) redefineProp(xhr, 'err', function () {
-                return err;
-              });
-              xhr.__fileApiXHR = fileApiXHR;
-              if (xhr.onreadystatechange) xhr.onreadystatechange();
-              if (xhr.onload) xhr.onload();
-            },
-            progress: function (e) {
-              e.target = xhr;
-              if (xhr.__listeners.progress) xhr.__listeners.progress(e);
-              xhr.__total = e.total;
-              xhr.__loaded = e.loaded;
-              if (e.total === e.loaded) {
-                // fix flash issue that doesn't call complete if there is no response text from the server
-                var _this = this;
-                setTimeout(function () {
-                  if (!xhr.__completed) {
-                    xhr.getAllResponseHeaders = function () {
-                    };
-                    _this.complete(null, {status: 204, statusText: 'No Content'});
-                  }
-                }, FileAPI.noContentTimeout || 10000);
-              }
-            },
-            headers: xhr.__requestHeaders
-          };
-          config.data = {};
-          config.files = {};
-          for (var i = 0; i < formData.data.length; i++) {
-            var item = formData.data[i];
-            if (item.val != null && item.val.name != null && item.val.size != null && item.val.type != null) {
-              config.files[item.key] = item.val;
-            } else {
-              config.data[item.key] = item.val;
-            }
-          }
-
-          setTimeout(function () {
-            if (!FileAPI.hasFlash) {
-              throw 'Adode Flash Player need to be installed. To check ahead use "FileAPI.hasFlash"';
-            }
-            xhr.__fileApiXHR = FileAPI.upload(config);
-          }, 1);
-        } else {
-          if (this.__origError) {
-            throw this.__origError;
-          }
-          orig.apply(xhr, arguments);
-        }
-      };
-    });
-    window.XMLHttpRequest.__isFileAPIShim = true;
-    window.FormData = FormData = function () {
-      return {
-        append: function (key, val, name) {
-          if (val.__isFileAPIBlobShim) {
-            val = val.data[0];
-          }
-          this.data.push({
-            key: key,
-            val: val,
-            name: name
-          });
-        },
-        data: [],
-        __isFileAPIShim: true
-      };
-    };
-
-    window.Blob = Blob = function (b) {
-      return {
-        data: b,
-        __isFileAPIBlobShim: true
-      };
-    };
-  }
-
-})();
-
-(function () {
-  /** @namespace FileAPI.forceLoad */
-  /** @namespace window.FileAPI.jsUrl */
-  /** @namespace window.FileAPI.jsPath */
-
-  function isInputTypeFile(elem) {
-    return elem[0].tagName.toLowerCase() === 'input' && elem.attr('type') && elem.attr('type').toLowerCase() === 'file';
-  }
-
-  function hasFlash() {
-    try {
-      var fo = new ActiveXObject('ShockwaveFlash.ShockwaveFlash');
-      if (fo) return true;
-    } catch (e) {
-      if (navigator.mimeTypes['application/x-shockwave-flash'] !== undefined) return true;
-    }
-    return false;
-  }
-
-  function getOffset(obj) {
-    var left = 0, top = 0;
-
-    if (window.jQuery) {
-      return jQuery(obj).offset();
-    }
-
-    if (obj.offsetParent) {
-      do {
-        left += (obj.offsetLeft - obj.scrollLeft);
-        top += (obj.offsetTop - obj.scrollTop);
-        obj = obj.offsetParent;
-      } while (obj);
-    }
-    return {
-      left: left,
-      top: top
-    };
-  }
-
-  if (FileAPI.shouldLoad) {
-    FileAPI.hasFlash = hasFlash();
-
-    //load FileAPI
-    if (FileAPI.forceLoad) {
-      FileAPI.html5 = false;
-    }
-
-    if (!FileAPI.upload) {
-      var jsUrl, basePath, script = document.createElement('script'), allScripts = document.getElementsByTagName('script'), i, index, src;
-      if (window.FileAPI.jsUrl) {
-        jsUrl = window.FileAPI.jsUrl;
-      } else if (window.FileAPI.jsPath) {
-        basePath = window.FileAPI.jsPath;
-      } else {
-        for (i = 0; i < allScripts.length; i++) {
-          src = allScripts[i].src;
-          index = src.search(/\/ng\-file\-upload[\-a-zA-z0-9\.]*\.js/);
-          if (index > -1) {
-            basePath = src.substring(0, index + 1);
-            break;
-          }
-        }
-      }
-
-      if (FileAPI.staticPath == null) FileAPI.staticPath = basePath;
-      script.setAttribute('src', jsUrl || basePath + 'FileAPI.min.js');
-      document.getElementsByTagName('head')[0].appendChild(script);
-    }
-
-    FileAPI.ngfFixIE = function (elem, fileElem, changeFn) {
-      if (!hasFlash()) {
-        throw 'Adode Flash Player need to be installed. To check ahead use "FileAPI.hasFlash"';
-      }
-      var fixInputStyle = function () {
-        var label = fileElem.parent();
-        if (elem.attr('disabled')) {
-          if (label) label.removeClass('js-fileapi-wrapper');
-        } else {
-          if (!fileElem.attr('__ngf_flash_')) {
-            fileElem.unbind('change');
-            fileElem.unbind('click');
-            fileElem.bind('change', function (evt) {
-              fileApiChangeFn.apply(this, [evt]);
-              changeFn.apply(this, [evt]);
-            });
-            fileElem.attr('__ngf_flash_', 'true');
-          }
-          label.addClass('js-fileapi-wrapper');
-          if (!isInputTypeFile(elem)) {
-            label.css('position', 'absolute')
-              .css('top', getOffset(elem[0]).top + 'px').css('left', getOffset(elem[0]).left + 'px')
-              .css('width', elem[0].offsetWidth + 'px').css('height', elem[0].offsetHeight + 'px')
-              .css('filter', 'alpha(opacity=0)').css('display', elem.css('display'))
-              .css('overflow', 'hidden').css('z-index', '900000')
-              .css('visibility', 'visible');
-            fileElem.css('width', elem[0].offsetWidth + 'px').css('height', elem[0].offsetHeight + 'px')
-              .css('position', 'absolute').css('top', '0px').css('left', '0px');
-          }
-        }
-      };
-
-      elem.bind('mouseenter', fixInputStyle);
-
-      var fileApiChangeFn = function (evt) {
-        var files = FileAPI.getFiles(evt);
-        //just a double check for #233
-        for (var i = 0; i < files.length; i++) {
-          if (files[i].size === undefined) files[i].size = 0;
-          if (files[i].name === undefined) files[i].name = 'file';
-          if (files[i].type === undefined) files[i].type = 'undefined';
-        }
-        if (!evt.target) {
-          evt.target = {};
-        }
-        evt.target.files = files;
-        // if evt.target.files is not writable use helper field
-        if (evt.target.files !== files) {
-          evt.__files_ = files;
-        }
-        (evt.__files_ || evt.target.files).item = function (i) {
-          return (evt.__files_ || evt.target.files)[i] || null;
-        };
-      };
-    };
-
-    FileAPI.disableFileInput = function (elem, disable) {
-      if (disable) {
-        elem.removeClass('js-fileapi-wrapper');
-      } else {
-        elem.addClass('js-fileapi-wrapper');
-      }
-    };
-  }
-})();
-
-if (!window.FileReader) {
-  window.FileReader = function () {
-    var _this = this, loadStarted = false;
-    this.listeners = {};
-    this.addEventListener = function (type, fn) {
-      _this.listeners[type] = _this.listeners[type] || [];
-      _this.listeners[type].push(fn);
-    };
-    this.removeEventListener = function (type, fn) {
-      if (_this.listeners[type]) _this.listeners[type].splice(_this.listeners[type].indexOf(fn), 1);
-    };
-    this.dispatchEvent = function (evt) {
-      var list = _this.listeners[evt.type];
-      if (list) {
-        for (var i = 0; i < list.length; i++) {
-          list[i].call(_this, evt);
-        }
-      }
-    };
-    this.onabort = this.onerror = this.onload = this.onloadstart = this.onloadend = this.onprogress = null;
-
-    var constructEvent = function (type, evt) {
-      var e = {type: type, target: _this, loaded: evt.loaded, total: evt.total, error: evt.error};
-      if (evt.result != null) e.target.result = evt.result;
-      return e;
-    };
-    var listener = function (evt) {
-      if (!loadStarted) {
-        loadStarted = true;
-        if (_this.onloadstart) _this.onloadstart(constructEvent('loadstart', evt));
-      }
-      var e;
-      if (evt.type === 'load') {
-        if (_this.onloadend) _this.onloadend(constructEvent('loadend', evt));
-        e = constructEvent('load', evt);
-        if (_this.onload) _this.onload(e);
-        _this.dispatchEvent(e);
-      } else if (evt.type === 'progress') {
-        e = constructEvent('progress', evt);
-        if (_this.onprogress) _this.onprogress(e);
-        _this.dispatchEvent(e);
-      } else {
-        e = constructEvent('error', evt);
-        if (_this.onerror) _this.onerror(e);
-        _this.dispatchEvent(e);
-      }
-    };
-    this.readAsDataURL = function (file) {
-      FileAPI.readAsDataURL(file, listener);
-    };
-    this.readAsText = function (file) {
-      FileAPI.readAsText(file, listener);
-    };
-  };
-}
-
-/**!
- * AngularJS file upload directives and services. Supoorts: file upload/drop/paste, resume, cancel/abort,
- * progress, resize, thumbnail, preview, validation and CORS
- * @author  Danial  <danial.farid@gmail.com>
- * @version 12.2.13
- */
-
-if (window.XMLHttpRequest && !(window.FileAPI && FileAPI.shouldLoad)) {
-  window.XMLHttpRequest.prototype.setRequestHeader = (function (orig) {
-    return function (header, value) {
-      if (header === '__setXHR_') {
-        var val = value(this);
-        // fix for angular < 1.2.0
-        if (val instanceof Function) {
-          val(this);
-        }
-      } else {
-        orig.apply(this, arguments);
-      }
-    };
-  })(window.XMLHttpRequest.prototype.setRequestHeader);
-}
-
-var ngFileUpload = angular.module('ngFileUpload', []);
-
-ngFileUpload.version = '12.2.13';
-
-ngFileUpload.service('UploadBase', ['$http', '$q', '$timeout', function ($http, $q, $timeout) {
-  var upload = this;
-  upload.promisesCount = 0;
-
-  this.isResumeSupported = function () {
-    return window.Blob && window.Blob.prototype.slice;
-  };
-
-  var resumeSupported = this.isResumeSupported();
-
-  function sendHttp(config) {
-    config.method = config.method || 'POST';
-    config.headers = config.headers || {};
-
-    var deferred = config._deferred = config._deferred || $q.defer();
-    var promise = deferred.promise;
-
-    function notifyProgress(e) {
-      if (deferred.notify) {
-        deferred.notify(e);
-      }
-      if (promise.progressFunc) {
-        $timeout(function () {
-          promise.progressFunc(e);
-        });
-      }
-    }
-
-    function getNotifyEvent(n) {
-      if (config._start != null && resumeSupported) {
-        return {
-          loaded: n.loaded + config._start,
-          total: (config._file && config._file.size) || n.total,
-          type: n.type, config: config,
-          lengthComputable: true, target: n.target
-        };
-      } else {
-        return n;
-      }
-    }
-
-    if (!config.disableProgress) {
-      config.headers.__setXHR_ = function () {
-        return function (xhr) {
-          if (!xhr || !xhr.upload || !xhr.upload.addEventListener) return;
-          config.__XHR = xhr;
-          if (config.xhrFn) config.xhrFn(xhr);
-          xhr.upload.addEventListener('progress', function (e) {
-            e.config = config;
-            notifyProgress(getNotifyEvent(e));
-          }, false);
-          //fix for firefox not firing upload progress end, also IE8-9
-          xhr.upload.addEventListener('load', function (e) {
-            if (e.lengthComputable) {
-              e.config = config;
-              notifyProgress(getNotifyEvent(e));
-            }
-          }, false);
-        };
-      };
-    }
-
-    function uploadWithAngular() {
-      $http(config).then(function (r) {
-          if (resumeSupported && config._chunkSize && !config._finished && config._file) {
-            var fileSize = config._file && config._file.size || 0;
-            notifyProgress({
-                loaded: Math.min(config._end, fileSize),
-                total: fileSize,
-                config: config,
-                type: 'progress'
-              }
-            );
-            upload.upload(config, true);
-          } else {
-            if (config._finished) delete config._finished;
-            deferred.resolve(r);
-          }
-        }, function (e) {
-          deferred.reject(e);
-        }, function (n) {
-          deferred.notify(n);
-        }
-      );
-    }
-
-    if (!resumeSupported) {
-      uploadWithAngular();
-    } else if (config._chunkSize && config._end && !config._finished) {
-      config._start = config._end;
-      config._end += config._chunkSize;
-      uploadWithAngular();
-    } else if (config.resumeSizeUrl) {
-      $http.get(config.resumeSizeUrl).then(function (resp) {
-        if (config.resumeSizeResponseReader) {
-          config._start = config.resumeSizeResponseReader(resp.data);
-        } else {
-          config._start = parseInt((resp.data.size == null ? resp.data : resp.data.size).toString());
-        }
-        if (config._chunkSize) {
-          config._end = config._start + config._chunkSize;
-        }
-        uploadWithAngular();
-      }, function (e) {
-        throw e;
-      });
-    } else if (config.resumeSize) {
-      config.resumeSize().then(function (size) {
-        config._start = size;
-        if (config._chunkSize) {
-          config._end = config._start + config._chunkSize;
-        }
-        uploadWithAngular();
-      }, function (e) {
-        throw e;
-      });
-    } else {
-      if (config._chunkSize) {
-        config._start = 0;
-        config._end = config._start + config._chunkSize;
-      }
-      uploadWithAngular();
-    }
-
-
-    promise.success = function (fn) {
-      promise.then(function (response) {
-        fn(response.data, response.status, response.headers, config);
-      });
-      return promise;
-    };
-
-    promise.error = function (fn) {
-      promise.then(null, function (response) {
-        fn(response.data, response.status, response.headers, config);
-      });
-      return promise;
-    };
-
-    promise.progress = function (fn) {
-      promise.progressFunc = fn;
-      promise.then(null, null, function (n) {
-        fn(n);
-      });
-      return promise;
-    };
-    promise.abort = promise.pause = function () {
-      if (config.__XHR) {
-        $timeout(function () {
-          config.__XHR.abort();
-        });
-      }
-      return promise;
-    };
-    promise.xhr = function (fn) {
-      config.xhrFn = (function (origXhrFn) {
-        return function () {
-          if (origXhrFn) origXhrFn.apply(promise, arguments);
-          fn.apply(promise, arguments);
-        };
-      })(config.xhrFn);
-      return promise;
-    };
-
-    upload.promisesCount++;
-    if (promise['finally'] && promise['finally'] instanceof Function) {
-      promise['finally'](function () {
-        upload.promisesCount--;
-      });
-    }
-    return promise;
-  }
-
-  this.isUploadInProgress = function () {
-    return upload.promisesCount > 0;
-  };
-
-  this.rename = function (file, name) {
-    file.ngfName = name;
-    return file;
-  };
-
-  this.jsonBlob = function (val) {
-    if (val != null && !angular.isString(val)) {
-      val = JSON.stringify(val);
-    }
-    var blob = new window.Blob([val], {type: 'application/json'});
-    blob._ngfBlob = true;
-    return blob;
-  };
-
-  this.json = function (val) {
-    return angular.toJson(val);
-  };
-
-  function copy(obj) {
-    var clone = {};
-    for (var key in obj) {
-      if (obj.hasOwnProperty(key)) {
-        clone[key] = obj[key];
-      }
-    }
-    return clone;
-  }
-
-  this.isFile = function (file) {
-    return file != null && (file instanceof window.Blob || (file.flashId && file.name && file.size));
-  };
-
-  this.upload = function (config, internal) {
-    function toResumeFile(file, formData) {
-      if (file._ngfBlob) return file;
-      config._file = config._file || file;
-      if (config._start != null && resumeSupported) {
-        if (config._end && config._end >= file.size) {
-          config._finished = true;
-          config._end = file.size;
-        }
-        var slice = file.slice(config._start, config._end || file.size);
-        slice.name = file.name;
-        slice.ngfName = file.ngfName;
-        if (config._chunkSize) {
-          formData.append('_chunkSize', config._chunkSize);
-          formData.append('_currentChunkSize', config._end - config._start);
-          formData.append('_chunkNumber', Math.floor(config._start / config._chunkSize));
-          formData.append('_totalSize', config._file.size);
-        }
-        return slice;
-      }
-      return file;
-    }
-
-    function addFieldToFormData(formData, val, key) {
-      if (val !== undefined) {
-        if (angular.isDate(val)) {
-          val = val.toISOString();
-        }
-        if (angular.isString(val)) {
-          formData.append(key, val);
-        } else if (upload.isFile(val)) {
-          var file = toResumeFile(val, formData);
-          var split = key.split(',');
-          if (split[1]) {
-            file.ngfName = split[1].replace(/^\s+|\s+$/g, '');
-            key = split[0];
-          }
-          config._fileKey = config._fileKey || key;
-          formData.append(key, file, file.ngfName || file.name);
-        } else {
-          if (angular.isObject(val)) {
-            if (val.$$ngfCircularDetection) throw 'ngFileUpload: Circular reference in config.data. Make sure specified data for Upload.upload() has no circular reference: ' + key;
-
-            val.$$ngfCircularDetection = true;
-            try {
-              for (var k in val) {
-                if (val.hasOwnProperty(k) && k !== '$$ngfCircularDetection') {
-                  var objectKey = config.objectKey == null ? '[i]' : config.objectKey;
-                  if (val.length && parseInt(k) > -1) {
-                    objectKey = config.arrayKey == null ? objectKey : config.arrayKey;
-                  }
-                  addFieldToFormData(formData, val[k], key + objectKey.replace(/[ik]/g, k));
-                }
-              }
-            } finally {
-              delete val.$$ngfCircularDetection;
-            }
-          } else {
-            formData.append(key, val);
-          }
-        }
-      }
-    }
-
-    function digestConfig() {
-      config._chunkSize = upload.translateScalars(config.resumeChunkSize);
-      config._chunkSize = config._chunkSize ? parseInt(config._chunkSize.toString()) : null;
-
-      config.headers = config.headers || {};
-      config.headers['Content-Type'] = undefined;
-      config.transformRequest = config.transformRequest ?
-        (angular.isArray(config.transformRequest) ?
-          config.transformRequest : [config.transformRequest]) : [];
-      config.transformRequest.push(function (data) {
-        var formData = new window.FormData(), key;
-        data = data || config.fields || {};
-        if (config.file) {
-          data.file = config.file;
-        }
-        for (key in data) {
-          if (data.hasOwnProperty(key)) {
-            var val = data[key];
-            if (config.formDataAppender) {
-              config.formDataAppender(formData, key, val);
-            } else {
-              addFieldToFormData(formData, val, key);
-            }
-          }
-        }
-
-        return formData;
-      });
-    }
-
-    if (!internal) config = copy(config);
-    if (!config._isDigested) {
-      config._isDigested = true;
-      digestConfig();
-    }
-
-    return sendHttp(config);
-  };
-
-  this.http = function (config) {
-    config = copy(config);
-    config.transformRequest = config.transformRequest || function (data) {
-        if ((window.ArrayBuffer && data instanceof window.ArrayBuffer) || data instanceof window.Blob) {
-          return data;
-        }
-        return $http.defaults.transformRequest[0].apply(this, arguments);
-      };
-    config._chunkSize = upload.translateScalars(config.resumeChunkSize);
-    config._chunkSize = config._chunkSize ? parseInt(config._chunkSize.toString()) : null;
-
-    return sendHttp(config);
-  };
-
-  this.translateScalars = function (str) {
-    if (angular.isString(str)) {
-      if (str.search(/kb/i) === str.length - 2) {
-        return parseFloat(str.substring(0, str.length - 2) * 1024);
-      } else if (str.search(/mb/i) === str.length - 2) {
-        return parseFloat(str.substring(0, str.length - 2) * 1048576);
-      } else if (str.search(/gb/i) === str.length - 2) {
-        return parseFloat(str.substring(0, str.length - 2) * 1073741824);
-      } else if (str.search(/b/i) === str.length - 1) {
-        return parseFloat(str.substring(0, str.length - 1));
-      } else if (str.search(/s/i) === str.length - 1) {
-        return parseFloat(str.substring(0, str.length - 1));
-      } else if (str.search(/m/i) === str.length - 1) {
-        return parseFloat(str.substring(0, str.length - 1) * 60);
-      } else if (str.search(/h/i) === str.length - 1) {
-        return parseFloat(str.substring(0, str.length - 1) * 3600);
-      }
-    }
-    return str;
-  };
-
-  this.urlToBlob = function(url) {
-    var defer = $q.defer();
-    $http({url: url, method: 'get', responseType: 'arraybuffer'}).then(function (resp) {
-      var arrayBufferView = new Uint8Array(resp.data);
-      var type = resp.headers('content-type') || 'image/WebP';
-      var blob = new window.Blob([arrayBufferView], {type: type});
-      var matches = url.match(/.*\/(.+?)(\?.*)?$/);
-      if (matches.length > 1) {
-        blob.name = matches[1];
-      }
-      defer.resolve(blob);
-    }, function (e) {
-      defer.reject(e);
-    });
-    return defer.promise;
-  };
-
-  this.setDefaults = function (defaults) {
-    this.defaults = defaults || {};
-  };
-
-  this.defaults = {};
-  this.version = ngFileUpload.version;
-}
-
-]);
-
-ngFileUpload.service('Upload', ['$parse', '$timeout', '$compile', '$q', 'UploadExif', function ($parse, $timeout, $compile, $q, UploadExif) {
-  var upload = UploadExif;
-  upload.getAttrWithDefaults = function (attr, name) {
-    if (attr[name] != null) return attr[name];
-    var def = upload.defaults[name];
-    return (def == null ? def : (angular.isString(def) ? def : JSON.stringify(def)));
-  };
-
-  upload.attrGetter = function (name, attr, scope, params) {
-    var attrVal = this.getAttrWithDefaults(attr, name);
-    if (scope) {
-      try {
-        if (params) {
-          return $parse(attrVal)(scope, params);
-        } else {
-          return $parse(attrVal)(scope);
-        }
-      } catch (e) {
-        // hangle string value without single qoute
-        if (name.search(/min|max|pattern/i)) {
-          return attrVal;
-        } else {
-          throw e;
-        }
-      }
-    } else {
-      return attrVal;
-    }
-  };
-
-  upload.shouldUpdateOn = function (type, attr, scope) {
-    var modelOptions = upload.attrGetter('ngfModelOptions', attr, scope);
-    if (modelOptions && modelOptions.updateOn) {
-      return modelOptions.updateOn.split(' ').indexOf(type) > -1;
-    }
-    return true;
-  };
-
-  upload.emptyPromise = function () {
-    var d = $q.defer();
-    var args = arguments;
-    $timeout(function () {
-      d.resolve.apply(d, args);
-    });
-    return d.promise;
-  };
-
-  upload.rejectPromise = function () {
-    var d = $q.defer();
-    var args = arguments;
-    $timeout(function () {
-      d.reject.apply(d, args);
-    });
-    return d.promise;
-  };
-
-  upload.happyPromise = function (promise, data) {
-    var d = $q.defer();
-    promise.then(function (result) {
-      d.resolve(result);
-    }, function (error) {
-      $timeout(function () {
-        throw error;
-      });
-      d.resolve(data);
-    });
-    return d.promise;
-  };
-
-  function applyExifRotations(files, attr, scope) {
-    var promises = [upload.emptyPromise()];
-    angular.forEach(files, function (f, i) {
-      if (f.type.indexOf('image/jpeg') === 0 && upload.attrGetter('ngfFixOrientation', attr, scope, {$file: f})) {
-        promises.push(upload.happyPromise(upload.applyExifRotation(f), f).then(function (fixedFile) {
-          files.splice(i, 1, fixedFile);
-        }));
-      }
-    });
-    return $q.all(promises);
-  }
-
-  function resizeFile(files, attr, scope, ngModel) {
-    var resizeVal = upload.attrGetter('ngfResize', attr, scope);
-    if (!resizeVal || !upload.isResizeSupported() || !files.length) return upload.emptyPromise();
-    if (resizeVal instanceof Function) {
-      var defer = $q.defer();
-      return resizeVal(files).then(function (p) {
-        resizeWithParams(p, files, attr, scope, ngModel).then(function (r) {
-          defer.resolve(r);
-        }, function (e) {
-          defer.reject(e);
-        });
-      }, function (e) {
-        defer.reject(e);
-      });
-    } else {
-      return resizeWithParams(resizeVal, files, attr, scope, ngModel);
-    }
-  }
-
-  function resizeWithParams(params, files, attr, scope, ngModel) {
-    var promises = [upload.emptyPromise()];
-
-    function handleFile(f, i) {
-      if (f.type.indexOf('image') === 0) {
-        if (params.pattern && !upload.validatePattern(f, params.pattern)) return;
-        params.resizeIf = function (width, height) {
-          return upload.attrGetter('ngfResizeIf', attr, scope,
-            {$width: width, $height: height, $file: f});
-        };
-        var promise = upload.resize(f, params);
-        promises.push(promise);
-        promise.then(function (resizedFile) {
-          files.splice(i, 1, resizedFile);
-        }, function (e) {
-          f.$error = 'resize';
-          (f.$errorMessages = (f.$errorMessages || {})).resize = true;
-          f.$errorParam = (e ? (e.message ? e.message : e) + ': ' : '') + (f && f.name);
-          ngModel.$ngfValidations.push({name: 'resize', valid: false});
-          upload.applyModelValidation(ngModel, files);
-        });
-      }
-    }
-
-    for (var i = 0; i < files.length; i++) {
-      handleFile(files[i], i);
-    }
-    return $q.all(promises);
-  }
-
-  upload.updateModel = function (ngModel, attr, scope, fileChange, files, evt, noDelay) {
-    function update(files, invalidFiles, newFiles, dupFiles, isSingleModel) {
-      attr.$$ngfPrevValidFiles = files;
-      attr.$$ngfPrevInvalidFiles = invalidFiles;
-      var file = files && files.length ? files[0] : null;
-      var invalidFile = invalidFiles && invalidFiles.length ? invalidFiles[0] : null;
-
-      if (ngModel) {
-        upload.applyModelValidation(ngModel, files);
-        ngModel.$setViewValue(isSingleModel ? file : files);
-      }
-
-      if (fileChange) {
-        $parse(fileChange)(scope, {
-          $files: files,
-          $file: file,
-          $newFiles: newFiles,
-          $duplicateFiles: dupFiles,
-          $invalidFiles: invalidFiles,
-          $invalidFile: invalidFile,
-          $event: evt
-        });
-      }
-
-      var invalidModel = upload.attrGetter('ngfModelInvalid', attr);
-      if (invalidModel) {
-        $timeout(function () {
-          $parse(invalidModel).assign(scope, isSingleModel ? invalidFile : invalidFiles);
-        });
-      }
-      $timeout(function () {
-        // scope apply changes
-      });
-    }
-
-    var allNewFiles, dupFiles = [], prevValidFiles, prevInvalidFiles,
-      invalids = [], valids = [];
-
-    function removeDuplicates() {
-      function equals(f1, f2) {
-        return f1.name === f2.name && (f1.$ngfOrigSize || f1.size) === (f2.$ngfOrigSize || f2.size) &&
-          f1.type === f2.type;
-      }
-
-      function isInPrevFiles(f) {
-        var j;
-        for (j = 0; j < prevValidFiles.length; j++) {
-          if (equals(f, prevValidFiles[j])) {
-            return true;
-          }
-        }
-        for (j = 0; j < prevInvalidFiles.length; j++) {
-          if (equals(f, prevInvalidFiles[j])) {
-            return true;
-          }
-        }
-        return false;
-      }
-
-      if (files) {
-        allNewFiles = [];
-        dupFiles = [];
-        for (var i = 0; i < files.length; i++) {
-          if (isInPrevFiles(files[i])) {
-            dupFiles.push(files[i]);
-          } else {
-            allNewFiles.push(files[i]);
-          }
-        }
-      }
-    }
-
-    function toArray(v) {
-      return angular.isArray(v) ? v : [v];
-    }
-
-    function resizeAndUpdate() {
-      function updateModel() {
-        $timeout(function () {
-          update(keep ? prevValidFiles.concat(valids) : valids,
-            keep ? prevInvalidFiles.concat(invalids) : invalids,
-            files, dupFiles, isSingleModel);
-        }, options && options.debounce ? options.debounce.change || options.debounce : 0);
-      }
-
-      var resizingFiles = validateAfterResize ? allNewFiles : valids;
-      resizeFile(resizingFiles, attr, scope, ngModel).then(function () {
-        if (validateAfterResize) {
-          upload.validate(allNewFiles, keep ? prevValidFiles.length : 0, ngModel, attr, scope)
-            .then(function (validationResult) {
-              valids = validationResult.validsFiles;
-              invalids = validationResult.invalidsFiles;
-              updateModel();
-            });
-        } else {
-          updateModel();
-        }
-      }, function () {
-        for (var i = 0; i < resizingFiles.length; i++) {
-          var f = resizingFiles[i];
-          if (f.$error === 'resize') {
-            var index = valids.indexOf(f);
-            if (index > -1) {
-              valids.splice(index, 1);
-              invalids.push(f);
-            }
-            updateModel();
-          }
-        }
-      });
-    }
-
-    prevValidFiles = attr.$$ngfPrevValidFiles || [];
-    prevInvalidFiles = attr.$$ngfPrevInvalidFiles || [];
-    if (ngModel && ngModel.$modelValue) {
-      prevValidFiles = toArray(ngModel.$modelValue);
-    }
-
-    var keep = upload.attrGetter('ngfKeep', attr, scope);
-    allNewFiles = (files || []).slice(0);
-    if (keep === 'distinct' || upload.attrGetter('ngfKeepDistinct', attr, scope) === true) {
-      removeDuplicates(attr, scope);
-    }
-
-    var isSingleModel = !keep && !upload.attrGetter('ngfMultiple', attr, scope) && !upload.attrGetter('multiple', attr);
-
-    if (keep && !allNewFiles.length) return;
-
-    upload.attrGetter('ngfBeforeModelChange', attr, scope, {
-      $files: files,
-      $file: files && files.length ? files[0] : null,
-      $newFiles: allNewFiles,
-      $duplicateFiles: dupFiles,
-      $event: evt
-    });
-
-    var validateAfterResize = upload.attrGetter('ngfValidateAfterResize', attr, scope);
-
-    var options = upload.attrGetter('ngfModelOptions', attr, scope);
-    upload.validate(allNewFiles, keep ? prevValidFiles.length : 0, ngModel, attr, scope)
-      .then(function (validationResult) {
-      if (noDelay) {
-        update(allNewFiles, [], files, dupFiles, isSingleModel);
-      } else {
-        if ((!options || !options.allowInvalid) && !validateAfterResize) {
-          valids = validationResult.validFiles;
-          invalids = validationResult.invalidFiles;
-        } else {
-          valids = allNewFiles;
-        }
-        if (upload.attrGetter('ngfFixOrientation', attr, scope) && upload.isExifSupported()) {
-          applyExifRotations(valids, attr, scope).then(function () {
-            resizeAndUpdate();
-          });
-        } else {
-          resizeAndUpdate();
-        }
-      }
-    });
-  };
-
-  return upload;
-}]);
-
-ngFileUpload.directive('ngfSelect', ['$parse', '$timeout', '$compile', 'Upload', function ($parse, $timeout, $compile, Upload) {
-  var generatedElems = [];
-
-  function isDelayedClickSupported(ua) {
-    // fix for android native browser < 4.4 and safari windows
-    var m = ua.match(/Android[^\d]*(\d+)\.(\d+)/);
-    if (m && m.length > 2) {
-      var v = Upload.defaults.androidFixMinorVersion || 4;
-      return parseInt(m[1]) < 4 || (parseInt(m[1]) === v && parseInt(m[2]) < v);
-    }
-
-    // safari on windows
-    return ua.indexOf('Chrome') === -1 && /.*Windows.*Safari.*/.test(ua);
-  }
-
-  function linkFileSelect(scope, elem, attr, ngModel, $parse, $timeout, $compile, upload) {
-    /** @namespace attr.ngfSelect */
-    /** @namespace attr.ngfChange */
-    /** @namespace attr.ngModel */
-    /** @namespace attr.ngfModelOptions */
-    /** @namespace attr.ngfMultiple */
-    /** @namespace attr.ngfCapture */
-    /** @namespace attr.ngfValidate */
-    /** @namespace attr.ngfKeep */
-    var attrGetter = function (name, scope) {
-      return upload.attrGetter(name, attr, scope);
-    };
-
-    function isInputTypeFile() {
-      return elem[0].tagName.toLowerCase() === 'input' && attr.type && attr.type.toLowerCase() === 'file';
-    }
-
-    function fileChangeAttr() {
-      return attrGetter('ngfChange') || attrGetter('ngfSelect');
-    }
-
-    function changeFn(evt) {
-      if (upload.shouldUpdateOn('change', attr, scope)) {
-        var fileList = evt.__files_ || (evt.target && evt.target.files), files = [];
-        /* Handle duplicate call in  IE11 */
-        if (!fileList) return;
-        for (var i = 0; i < fileList.length; i++) {
-          files.push(fileList[i]);
-        }
-        upload.updateModel(ngModel, attr, scope, fileChangeAttr(),
-          files.length ? files : null, evt);
-      }
-    }
-
-    upload.registerModelChangeValidator(ngModel, attr, scope);
-
-    var unwatches = [];
-    if (attrGetter('ngfMultiple')) {
-      unwatches.push(scope.$watch(attrGetter('ngfMultiple'), function () {
-        fileElem.attr('multiple', attrGetter('ngfMultiple', scope));
-      }));
-    }
-    if (attrGetter('ngfCapture')) {
-      unwatches.push(scope.$watch(attrGetter('ngfCapture'), function () {
-        fileElem.attr('capture', attrGetter('ngfCapture', scope));
-      }));
-    }
-    if (attrGetter('ngfAccept')) {
-      unwatches.push(scope.$watch(attrGetter('ngfAccept'), function () {
-        fileElem.attr('accept', attrGetter('ngfAccept', scope));
-      }));
-    }
-    unwatches.push(attr.$observe('accept', function () {
-      fileElem.attr('accept', attrGetter('accept'));
-    }));
-    function bindAttrToFileInput(fileElem, label) {
-      function updateId(val) {
-        fileElem.attr('id', 'ngf-' + val);
-        label.attr('id', 'ngf-label-' + val);
-      }
-
-      for (var i = 0; i < elem[0].attributes.length; i++) {
-        var attribute = elem[0].attributes[i];
-        if (attribute.name !== 'type' && attribute.name !== 'class' && attribute.name !== 'style') {
-          if (attribute.name === 'id') {
-            updateId(attribute.value);
-            unwatches.push(attr.$observe('id', updateId));
-          } else {
-            fileElem.attr(attribute.name, (!attribute.value && (attribute.name === 'required' ||
-            attribute.name === 'multiple')) ? attribute.name : attribute.value);
-          }
-        }
-      }
-    }
-
-    function createFileInput() {
-      if (isInputTypeFile()) {
-        return elem;
-      }
-
-      var fileElem = angular.element('<input type="file">');
-
-      var label = angular.element('<label>upload</label>');
-      label.css('visibility', 'hidden').css('position', 'absolute').css('overflow', 'hidden')
-        .css('width', '0px').css('height', '0px').css('border', 'none')
-        .css('margin', '0px').css('padding', '0px').attr('tabindex', '-1');
-      bindAttrToFileInput(fileElem, label);
-
-      generatedElems.push({el: elem, ref: label});
-
-      document.body.appendChild(label.append(fileElem)[0]);
-
-      return fileElem;
-    }
-
-    function clickHandler(evt) {
-      if (elem.attr('disabled')) return false;
-      if (attrGetter('ngfSelectDisabled', scope)) return;
-
-      var r = detectSwipe(evt);
-      // prevent the click if it is a swipe
-      if (r != null) return r;
-
-      resetModel(evt);
-
-      // fix for md when the element is removed from the DOM and added back #460
-      try {
-        if (!isInputTypeFile() && !document.body.contains(fileElem[0])) {
-          generatedElems.push({el: elem, ref: fileElem.parent()});
-          document.body.appendChild(fileElem.parent()[0]);
-          fileElem.bind('change', changeFn);
-        }
-      } catch (e) {/*ignore*/
-      }
-
-      if (isDelayedClickSupported(navigator.userAgent)) {
-        setTimeout(function () {
-          fileElem[0].click();
-        }, 0);
-      } else {
-        fileElem[0].click();
-      }
-
-      return false;
-    }
-
-
-    var initialTouchStartY = 0;
-    var initialTouchStartX = 0;
-
-    function detectSwipe(evt) {
-      var touches = evt.changedTouches || (evt.originalEvent && evt.originalEvent.changedTouches);
-      if (touches) {
-        if (evt.type === 'touchstart') {
-          initialTouchStartX = touches[0].clientX;
-          initialTouchStartY = touches[0].clientY;
-          return true; // don't block event default
-        } else {
-          // prevent scroll from triggering event
-          if (evt.type === 'touchend') {
-            var currentX = touches[0].clientX;
-            var currentY = touches[0].clientY;
-            if ((Math.abs(currentX - initialTouchStartX) > 20) ||
-              (Math.abs(currentY - initialTouchStartY) > 20)) {
-              evt.stopPropagation();
-              evt.preventDefault();
-              return false;
-            }
-          }
-          return true;
-        }
-      }
-    }
-
-    var fileElem = elem;
-
-    function resetModel(evt) {
-      if (upload.shouldUpdateOn('click', attr, scope) && fileElem.val()) {
-        fileElem.val(null);
-        upload.updateModel(ngModel, attr, scope, fileChangeAttr(), null, evt, true);
-      }
-    }
-
-    if (!isInputTypeFile()) {
-      fileElem = createFileInput();
-    }
-    fileElem.bind('change', changeFn);
-
-    if (!isInputTypeFile()) {
-      elem.bind('click touchstart touchend', clickHandler);
-    } else {
-      elem.bind('click', resetModel);
-    }
-
-    function ie10SameFileSelectFix(evt) {
-      if (fileElem && !fileElem.attr('__ngf_ie10_Fix_')) {
-        if (!fileElem[0].parentNode) {
-          fileElem = null;
-          return;
-        }
-        evt.preventDefault();
-        evt.stopPropagation();
-        fileElem.unbind('click');
-        var clone = fileElem.clone();
-        fileElem.replaceWith(clone);
-        fileElem = clone;
-        fileElem.attr('__ngf_ie10_Fix_', 'true');
-        fileElem.bind('change', changeFn);
-        fileElem.bind('click', ie10SameFileSelectFix);
-        fileElem[0].click();
-        return false;
-      } else {
-        fileElem.removeAttr('__ngf_ie10_Fix_');
-      }
-    }
-
-    if (navigator.appVersion.indexOf('MSIE 10') !== -1) {
-      fileElem.bind('click', ie10SameFileSelectFix);
-    }
-
-    if (ngModel) ngModel.$formatters.push(function (val) {
-      if (val == null || val.length === 0) {
-        if (fileElem.val()) {
-          fileElem.val(null);
-        }
-      }
-      return val;
-    });
-
-    scope.$on('$destroy', function () {
-      if (!isInputTypeFile()) fileElem.parent().remove();
-      angular.forEach(unwatches, function (unwatch) {
-        unwatch();
-      });
-    });
-
-    $timeout(function () {
-      for (var i = 0; i < generatedElems.length; i++) {
-        var g = generatedElems[i];
-        if (!document.body.contains(g.el[0])) {
-          generatedElems.splice(i, 1);
-          g.ref.remove();
-        }
-      }
-    });
-
-    if (window.FileAPI && window.FileAPI.ngfFixIE) {
-      window.FileAPI.ngfFixIE(elem, fileElem, changeFn);
-    }
-  }
-
-  return {
-    restrict: 'AEC',
-    require: '?ngModel',
-    link: function (scope, elem, attr, ngModel) {
-      linkFileSelect(scope, elem, attr, ngModel, $parse, $timeout, $compile, Upload);
-    }
-  };
-}]);
-
-(function () {
-
-  ngFileUpload.service('UploadDataUrl', ['UploadBase', '$timeout', '$q', function (UploadBase, $timeout, $q) {
-    var upload = UploadBase;
-    upload.base64DataUrl = function (file) {
-      if (angular.isArray(file)) {
-        var d = $q.defer(), count = 0;
-        angular.forEach(file, function (f) {
-          upload.dataUrl(f, true)['finally'](function () {
-            count++;
-            if (count === file.length) {
-              var urls = [];
-              angular.forEach(file, function (ff) {
-                urls.push(ff.$ngfDataUrl);
-              });
-              d.resolve(urls, file);
-            }
-          });
-        });
-        return d.promise;
-      } else {
-        return upload.dataUrl(file, true);
-      }
-    };
-    upload.dataUrl = function (file, disallowObjectUrl) {
-      if (!file) return upload.emptyPromise(file, file);
-      if ((disallowObjectUrl && file.$ngfDataUrl != null) || (!disallowObjectUrl && file.$ngfBlobUrl != null)) {
-        return upload.emptyPromise(disallowObjectUrl ? file.$ngfDataUrl : file.$ngfBlobUrl, file);
-      }
-      var p = disallowObjectUrl ? file.$$ngfDataUrlPromise : file.$$ngfBlobUrlPromise;
-      if (p) return p;
-
-      var deferred = $q.defer();
-      $timeout(function () {
-        if (window.FileReader && file &&
-          (!window.FileAPI || navigator.userAgent.indexOf('MSIE 8') === -1 || file.size < 20000) &&
-          (!window.FileAPI || navigator.userAgent.indexOf('MSIE 9') === -1 || file.size < 4000000)) {
-          //prefer URL.createObjectURL for handling refrences to files of all sizes
-          //since it doesn´t build a large string in memory
-          var URL = window.URL || window.webkitURL;
-          if (URL && URL.createObjectURL && !disallowObjectUrl) {
-            var url;
-            try {
-              url = URL.createObjectURL(file);
-            } catch (e) {
-              $timeout(function () {
-                file.$ngfBlobUrl = '';
-                deferred.reject();
-              });
-              return;
-            }
-            $timeout(function () {
-              file.$ngfBlobUrl = url;
-              if (url) {
-                deferred.resolve(url, file);
-                upload.blobUrls = upload.blobUrls || [];
-                upload.blobUrlsTotalSize = upload.blobUrlsTotalSize || 0;
-                upload.blobUrls.push({url: url, size: file.size});
-                upload.blobUrlsTotalSize += file.size || 0;
-                var maxMemory = upload.defaults.blobUrlsMaxMemory || 268435456;
-                var maxLength = upload.defaults.blobUrlsMaxQueueSize || 200;
-                while ((upload.blobUrlsTotalSize > maxMemory || upload.blobUrls.length > maxLength) && upload.blobUrls.length > 1) {
-                  var obj = upload.blobUrls.splice(0, 1)[0];
-                  URL.revokeObjectURL(obj.url);
-                  upload.blobUrlsTotalSize -= obj.size;
-                }
-              }
-            });
-          } else {
-            var fileReader = new FileReader();
-            fileReader.onload = function (e) {
-              $timeout(function () {
-                file.$ngfDataUrl = e.target.result;
-                deferred.resolve(e.target.result, file);
-                $timeout(function () {
-                  delete file.$ngfDataUrl;
-                }, 1000);
-              });
-            };
-            fileReader.onerror = function () {
-              $timeout(function () {
-                file.$ngfDataUrl = '';
-                deferred.reject();
-              });
-            };
-            fileReader.readAsDataURL(file);
-          }
-        } else {
-          $timeout(function () {
-            file[disallowObjectUrl ? '$ngfDataUrl' : '$ngfBlobUrl'] = '';
-            deferred.reject();
-          });
-        }
-      });
-
-      if (disallowObjectUrl) {
-        p = file.$$ngfDataUrlPromise = deferred.promise;
-      } else {
-        p = file.$$ngfBlobUrlPromise = deferred.promise;
-      }
-      p['finally'](function () {
-        delete file[disallowObjectUrl ? '$$ngfDataUrlPromise' : '$$ngfBlobUrlPromise'];
-      });
-      return p;
-    };
-    return upload;
-  }]);
-
-  function getTagType(el) {
-    if (el.tagName.toLowerCase() === 'img') return 'image';
-    if (el.tagName.toLowerCase() === 'audio') return 'audio';
-    if (el.tagName.toLowerCase() === 'video') return 'video';
-    return /./;
-  }
-
-  function linkFileDirective(Upload, $timeout, scope, elem, attr, directiveName, resizeParams, isBackground) {
-    function constructDataUrl(file) {
-      var disallowObjectUrl = Upload.attrGetter('ngfNoObjectUrl', attr, scope);
-      Upload.dataUrl(file, disallowObjectUrl)['finally'](function () {
-        $timeout(function () {
-          var src = (disallowObjectUrl ? file.$ngfDataUrl : file.$ngfBlobUrl) || file.$ngfDataUrl;
-          if (isBackground) {
-            elem.css('background-image', 'url(\'' + (src || '') + '\')');
-          } else {
-            elem.attr('src', src);
-          }
-          if (src) {
-            elem.removeClass('ng-hide');
-          } else {
-            elem.addClass('ng-hide');
-          }
-        });
-      });
-    }
-
-    $timeout(function () {
-      var unwatch = scope.$watch(attr[directiveName], function (file) {
-        var size = resizeParams;
-        if (directiveName === 'ngfThumbnail') {
-          if (!size) {
-            size = {
-              width: elem[0].naturalWidth || elem[0].clientWidth,
-              height: elem[0].naturalHeight || elem[0].clientHeight
-            };
-          }
-          if (size.width === 0 && window.getComputedStyle) {
-            var style = getComputedStyle(elem[0]);
-            if (style.width && style.width.indexOf('px') > -1 && style.height && style.height.indexOf('px') > -1) {
-              size = {
-                width: parseInt(style.width.slice(0, -2)),
-                height: parseInt(style.height.slice(0, -2))
-              };
-            }
-          }
-        }
-
-        if (angular.isString(file)) {
-          elem.removeClass('ng-hide');
-          if (isBackground) {
-            return elem.css('background-image', 'url(\'' + file + '\')');
-          } else {
-            return elem.attr('src', file);
-          }
-        }
-        if (file && file.type && file.type.search(getTagType(elem[0])) === 0 &&
-          (!isBackground || file.type.indexOf('image') === 0)) {
-          if (size && Upload.isResizeSupported()) {
-            size.resizeIf = function (width, height) {
-              return Upload.attrGetter('ngfResizeIf', attr, scope,
-                {$width: width, $height: height, $file: file});
-            };
-            Upload.resize(file, size).then(
-              function (f) {
-                constructDataUrl(f);
-              }, function (e) {
-                throw e;
-              }
-            );
-          } else {
-            constructDataUrl(file);
-          }
-        } else {
-          elem.addClass('ng-hide');
-        }
-      });
-
-      scope.$on('$destroy', function () {
-        unwatch();
-      });
-    });
-  }
-
-
-  /** @namespace attr.ngfSrc */
-  /** @namespace attr.ngfNoObjectUrl */
-  ngFileUpload.directive('ngfSrc', ['Upload', '$timeout', function (Upload, $timeout) {
-    return {
-      restrict: 'AE',
-      link: function (scope, elem, attr) {
-        linkFileDirective(Upload, $timeout, scope, elem, attr, 'ngfSrc',
-          Upload.attrGetter('ngfResize', attr, scope), false);
-      }
-    };
-  }]);
-
-  /** @namespace attr.ngfBackground */
-  /** @namespace attr.ngfNoObjectUrl */
-  ngFileUpload.directive('ngfBackground', ['Upload', '$timeout', function (Upload, $timeout) {
-    return {
-      restrict: 'AE',
-      link: function (scope, elem, attr) {
-        linkFileDirective(Upload, $timeout, scope, elem, attr, 'ngfBackground',
-          Upload.attrGetter('ngfResize', attr, scope), true);
-      }
-    };
-  }]);
-
-  /** @namespace attr.ngfThumbnail */
-  /** @namespace attr.ngfAsBackground */
-  /** @namespace attr.ngfSize */
-  /** @namespace attr.ngfNoObjectUrl */
-  ngFileUpload.directive('ngfThumbnail', ['Upload', '$timeout', function (Upload, $timeout) {
-    return {
-      restrict: 'AE',
-      link: function (scope, elem, attr) {
-        var size = Upload.attrGetter('ngfSize', attr, scope);
-        linkFileDirective(Upload, $timeout, scope, elem, attr, 'ngfThumbnail', size,
-          Upload.attrGetter('ngfAsBackground', attr, scope));
-      }
-    };
-  }]);
-
-  ngFileUpload.config(['$compileProvider', function ($compileProvider) {
-    if ($compileProvider.imgSrcSanitizationWhitelist) $compileProvider.imgSrcSanitizationWhitelist(/^\s*(https?|ftp|mailto|tel|webcal|local|file|data|blob):/);
-    if ($compileProvider.aHrefSanitizationWhitelist) $compileProvider.aHrefSanitizationWhitelist(/^\s*(https?|ftp|mailto|tel|webcal|local|file|data|blob):/);
-  }]);
-
-  ngFileUpload.filter('ngfDataUrl', ['UploadDataUrl', '$sce', function (UploadDataUrl, $sce) {
-    return function (file, disallowObjectUrl, trustedUrl) {
-      if (angular.isString(file)) {
-        return $sce.trustAsResourceUrl(file);
-      }
-      var src = file && ((disallowObjectUrl ? file.$ngfDataUrl : file.$ngfBlobUrl) || file.$ngfDataUrl);
-      if (file && !src) {
-        if (!file.$ngfDataUrlFilterInProgress && angular.isObject(file)) {
-          file.$ngfDataUrlFilterInProgress = true;
-          UploadDataUrl.dataUrl(file, disallowObjectUrl);
-        }
-        return '';
-      }
-      if (file) delete file.$ngfDataUrlFilterInProgress;
-      return (file && src ? (trustedUrl ? $sce.trustAsResourceUrl(src) : src) : file) || '';
-    };
-  }]);
-
-})();
-
-ngFileUpload.service('UploadValidate', ['UploadDataUrl', '$q', '$timeout', function (UploadDataUrl, $q, $timeout) {
-  var upload = UploadDataUrl;
-
-  function globStringToRegex(str) {
-    var regexp = '', excludes = [];
-    if (str.length > 2 && str[0] === '/' && str[str.length - 1] === '/') {
-      regexp = str.substring(1, str.length - 1);
-    } else {
-      var split = str.split(',');
-      if (split.length > 1) {
-        for (var i = 0; i < split.length; i++) {
-          var r = globStringToRegex(split[i]);
-          if (r.regexp) {
-            regexp += '(' + r.regexp + ')';
-            if (i < split.length - 1) {
-              regexp += '|';
-            }
-          } else {
-            excludes = excludes.concat(r.excludes);
-          }
-        }
-      } else {
-        if (str.indexOf('!') === 0) {
-          excludes.push('^((?!' + globStringToRegex(str.substring(1)).regexp + ').)*$');
-        } else {
-          if (str.indexOf('.') === 0) {
-            str = '*' + str;
-          }
-          regexp = '^' + str.replace(new RegExp('[.\\\\+*?\\[\\^\\]$(){}=!<>|:\\-]', 'g'), '\\$&') + '$';
-          regexp = regexp.replace(/\\\*/g, '.*').replace(/\\\?/g, '.');
-        }
-      }
-    }
-    return {regexp: regexp, excludes: excludes};
-  }
-
-  upload.validatePattern = function (file, val) {
-    if (!val) {
-      return true;
-    }
-    var pattern = globStringToRegex(val), valid = true;
-    if (pattern.regexp && pattern.regexp.length) {
-      var regexp = new RegExp(pattern.regexp, 'i');
-      valid = (file.type != null && regexp.test(file.type)) ||
-        (file.name != null && regexp.test(file.name));
-    }
-    var len = pattern.excludes.length;
-    while (len--) {
-      var exclude = new RegExp(pattern.excludes[len], 'i');
-      valid = valid && (file.type == null || exclude.test(file.type)) &&
-        (file.name == null || exclude.test(file.name));
-    }
-    return valid;
-  };
-
-  upload.ratioToFloat = function (val) {
-    var r = val.toString(), xIndex = r.search(/[x:]/i);
-    if (xIndex > -1) {
-      r = parseFloat(r.substring(0, xIndex)) / parseFloat(r.substring(xIndex + 1));
-    } else {
-      r = parseFloat(r);
-    }
-    return r;
-  };
-
-  upload.registerModelChangeValidator = function (ngModel, attr, scope) {
-    if (ngModel) {
-      ngModel.$formatters.push(function (files) {
-        if (ngModel.$dirty) {
-          var filesArray = files;
-          if (files && !angular.isArray(files)) {
-            filesArray = [files];
-          }
-          upload.validate(filesArray, 0, ngModel, attr, scope).then(function () {
-            upload.applyModelValidation(ngModel, filesArray);
-          });
-        }
-        return files;
-      });
-    }
-  };
-
-  function markModelAsDirty(ngModel, files) {
-    if (files != null && !ngModel.$dirty) {
-      if (ngModel.$setDirty) {
-        ngModel.$setDirty();
-      } else {
-        ngModel.$dirty = true;
-      }
-    }
-  }
-
-  upload.applyModelValidation = function (ngModel, files) {
-    markModelAsDirty(ngModel, files);
-    angular.forEach(ngModel.$ngfValidations, function (validation) {
-      ngModel.$setValidity(validation.name, validation.valid);
-    });
-  };
-
-  upload.getValidationAttr = function (attr, scope, name, validationName, file) {
-    var dName = 'ngf' + name[0].toUpperCase() + name.substr(1);
-    var val = upload.attrGetter(dName, attr, scope, {$file: file});
-    if (val == null) {
-      val = upload.attrGetter('ngfValidate', attr, scope, {$file: file});
-      if (val) {
-        var split = (validationName || name).split('.');
-        val = val[split[0]];
-        if (split.length > 1) {
-          val = val && val[split[1]];
-        }
-      }
-    }
-    return val;
-  };
-
-  upload.validate = function (files, prevLength, ngModel, attr, scope) {
-    ngModel = ngModel || {};
-    ngModel.$ngfValidations = ngModel.$ngfValidations || [];
-
-    angular.forEach(ngModel.$ngfValidations, function (v) {
-      v.valid = true;
-    });
-
-    var attrGetter = function (name, params) {
-      return upload.attrGetter(name, attr, scope, params);
-    };
-
-    var ignoredErrors = (upload.attrGetter('ngfIgnoreInvalid', attr, scope) || '').split(' ');
-    var runAllValidation = upload.attrGetter('ngfRunAllValidations', attr, scope);
-
-    if (files == null || files.length === 0) {
-      return upload.emptyPromise({'validFiles': files, 'invalidFiles': []});
-    }
-
-    files = files.length === undefined ? [files] : files.slice(0);
-    var invalidFiles = [];
-
-    function validateSync(name, validationName, fn) {
-      if (files) {
-        var i = files.length, valid = null;
-        while (i--) {
-          var file = files[i];
-          if (file) {
-            var val = upload.getValidationAttr(attr, scope, name, validationName, file);
-            if (val != null) {
-              if (!fn(file, val, i)) {
-                if (ignoredErrors.indexOf(name) === -1) {
-                  file.$error = name;
-                  (file.$errorMessages = (file.$errorMessages || {}))[name] = true;
-                  file.$errorParam = val;
-                  if (invalidFiles.indexOf(file) === -1) {
-                    invalidFiles.push(file);
-                  }
-                  if (!runAllValidation) {
-                    files.splice(i, 1);
-                  }
-                  valid = false;
-                } else {
-                  files.splice(i, 1);
-                }
-              }
-            }
-          }
-        }
-        if (valid !== null) {
-          ngModel.$ngfValidations.push({name: name, valid: valid});
-        }
-      }
-    }
-
-    validateSync('pattern', null, upload.validatePattern);
-    validateSync('minSize', 'size.min', function (file, val) {
-      return file.size + 0.1 >= upload.translateScalars(val);
-    });
-    validateSync('maxSize', 'size.max', function (file, val) {
-      return file.size - 0.1 <= upload.translateScalars(val);
-    });
-    var totalSize = 0;
-    validateSync('maxTotalSize', null, function (file, val) {
-      totalSize += file.size;
-      if (totalSize > upload.translateScalars(val)) {
-        files.splice(0, files.length);
-        return false;
-      }
-      return true;
-    });
-
-    validateSync('validateFn', null, function (file, r) {
-      return r === true || r === null || r === '';
-    });
-
-    if (!files.length) {
-      return upload.emptyPromise({'validFiles': [], 'invalidFiles': invalidFiles});
-    }
-
-    function validateAsync(name, validationName, type, asyncFn, fn) {
-      function resolveResult(defer, file, val) {
-        function resolveInternal(fn) {
-          if (fn()) {
-            if (ignoredErrors.indexOf(name) === -1) {
-              file.$error = name;
-              (file.$errorMessages = (file.$errorMessages || {}))[name] = true;
-              file.$errorParam = val;
-              if (invalidFiles.indexOf(file) === -1) {
-                invalidFiles.push(file);
-              }
-              if (!runAllValidation) {
-                var i = files.indexOf(file);
-                if (i > -1) files.splice(i, 1);
-              }
-              defer.resolve(false);
-            } else {
-              var j = files.indexOf(file);
-              if (j > -1) files.splice(j, 1);
-              defer.resolve(true);
-            }
-          } else {
-            defer.resolve(true);
-          }
-        }
-
-        if (val != null) {
-          asyncFn(file, val).then(function (d) {
-            resolveInternal(function () {
-              return !fn(d, val);
-            });
-          }, function () {
-            resolveInternal(function () {
-              return attrGetter('ngfValidateForce', {$file: file});
-            });
-          });
-        } else {
-          defer.resolve(true);
-        }
-      }
-
-      var promises = [upload.emptyPromise(true)];
-      if (files) {
-        files = files.length === undefined ? [files] : files;
-        angular.forEach(files, function (file) {
-          var defer = $q.defer();
-          promises.push(defer.promise);
-          if (type && (file.type == null || file.type.search(type) !== 0)) {
-            defer.resolve(true);
-            return;
-          }
-          if (name === 'dimensions' && upload.attrGetter('ngfDimensions', attr) != null) {
-            upload.imageDimensions(file).then(function (d) {
-              resolveResult(defer, file,
-                attrGetter('ngfDimensions', {$file: file, $width: d.width, $height: d.height}));
-            }, function () {
-              defer.resolve(false);
-            });
-          } else if (name === 'duration' && upload.attrGetter('ngfDuration', attr) != null) {
-            upload.mediaDuration(file).then(function (d) {
-              resolveResult(defer, file,
-                attrGetter('ngfDuration', {$file: file, $duration: d}));
-            }, function () {
-              defer.resolve(false);
-            });
-          } else {
-            resolveResult(defer, file,
-              upload.getValidationAttr(attr, scope, name, validationName, file));
-          }
-        });
-      }
-      var deffer = $q.defer();
-      $q.all(promises).then(function (values) {
-        var isValid = true;
-        for (var i = 0; i < values.length; i++) {
-          if (!values[i]) {
-            isValid = false;
-            break;
-          }
-        }
-        ngModel.$ngfValidations.push({name: name, valid: isValid});
-        deffer.resolve(isValid);
-      });
-      return deffer.promise;
-    }
-
-    var deffer = $q.defer();
-    var promises = [];
-
-    promises.push(validateAsync('maxHeight', 'height.max', /image/,
-      this.imageDimensions, function (d, val) {
-        return d.height <= val;
-      }));
-    promises.push(validateAsync('minHeight', 'height.min', /image/,
-      this.imageDimensions, function (d, val) {
-        return d.height >= val;
-      }));
-    promises.push(validateAsync('maxWidth', 'width.max', /image/,
-      this.imageDimensions, function (d, val) {
-        return d.width <= val;
-      }));
-    promises.push(validateAsync('minWidth', 'width.min', /image/,
-      this.imageDimensions, function (d, val) {
-        return d.width >= val;
-      }));
-    promises.push(validateAsync('dimensions', null, /image/,
-      function (file, val) {
-        return upload.emptyPromise(val);
-      }, function (r) {
-        return r;
-      }));
-    promises.push(validateAsync('ratio', null, /image/,
-      this.imageDimensions, function (d, val) {
-        var split = val.toString().split(','), valid = false;
-        for (var i = 0; i < split.length; i++) {
-          if (Math.abs((d.width / d.height) - upload.ratioToFloat(split[i])) < 0.01) {
-            valid = true;
-          }
-        }
-        return valid;
-      }));
-    promises.push(validateAsync('maxRatio', 'ratio.max', /image/,
-      this.imageDimensions, function (d, val) {
-        return (d.width / d.height) - upload.ratioToFloat(val) < 0.0001;
-      }));
-    promises.push(validateAsync('minRatio', 'ratio.min', /image/,
-      this.imageDimensions, function (d, val) {
-        return (d.width / d.height) - upload.ratioToFloat(val) > -0.0001;
-      }));
-    promises.push(validateAsync('maxDuration', 'duration.max', /audio|video/,
-      this.mediaDuration, function (d, val) {
-        return d <= upload.translateScalars(val);
-      }));
-    promises.push(validateAsync('minDuration', 'duration.min', /audio|video/,
-      this.mediaDuration, function (d, val) {
-        return d >= upload.translateScalars(val);
-      }));
-    promises.push(validateAsync('duration', null, /audio|video/,
-      function (file, val) {
-        return upload.emptyPromise(val);
-      }, function (r) {
-        return r;
-      }));
-
-    promises.push(validateAsync('validateAsyncFn', null, null,
-      function (file, val) {
-        return val;
-      }, function (r) {
-        return r === true || r === null || r === '';
-      }));
-
-    $q.all(promises).then(function () {
-
-      if (runAllValidation) {
-        for (var i = 0; i < files.length; i++) {
-          var file = files[i];
-          if (file.$error) {
-            files.splice(i--, 1);
-          }
-        }
-      }
-
-      runAllValidation = false;
-      validateSync('maxFiles', null, function (file, val, i) {
-        return prevLength + i < val;
-      });
-
-      deffer.resolve({'validFiles': files, 'invalidFiles': invalidFiles});
-    });
-    return deffer.promise;
-  };
-
-  upload.imageDimensions = function (file) {
-    if (file.$ngfWidth && file.$ngfHeight) {
-      var d = $q.defer();
-      $timeout(function () {
-        d.resolve({width: file.$ngfWidth, height: file.$ngfHeight});
-      });
-      return d.promise;
-    }
-    if (file.$ngfDimensionPromise) return file.$ngfDimensionPromise;
-
-    var deferred = $q.defer();
-    $timeout(function () {
-      if (file.type.indexOf('image') !== 0) {
-        deferred.reject('not image');
-        return;
-      }
-      upload.dataUrl(file).then(function (dataUrl) {
-        var img = angular.element('<img>').attr('src', dataUrl)
-          .css('visibility', 'hidden').css('position', 'fixed')
-          .css('max-width', 'none !important').css('max-height', 'none !important');
-
-        function success() {
-          var width = img[0].naturalWidth || img[0].clientWidth;
-          var height = img[0].naturalHeight || img[0].clientHeight;
-          img.remove();
-          file.$ngfWidth = width;
-          file.$ngfHeight = height;
-          deferred.resolve({width: width, height: height});
-        }
-
-        function error() {
-          img.remove();
-          deferred.reject('load error');
-        }
-
-        img.on('load', success);
-        img.on('error', error);
-
-        var secondsCounter = 0;
-        function checkLoadErrorInCaseOfNoCallback() {
-          $timeout(function () {
-            if (img[0].parentNode) {
-              if (img[0].clientWidth) {
-                success();
-              } else if (secondsCounter++ > 10) {
-                error();
-              } else {
-                checkLoadErrorInCaseOfNoCallback();
-              }
-            }
-          }, 1000);
-        }
-
-        checkLoadErrorInCaseOfNoCallback();
-
-        angular.element(document.getElementsByTagName('body')[0]).append(img);
-      }, function () {
-        deferred.reject('load error');
-      });
-    });
-
-    file.$ngfDimensionPromise = deferred.promise;
-    file.$ngfDimensionPromise['finally'](function () {
-      delete file.$ngfDimensionPromise;
-    });
-    return file.$ngfDimensionPromise;
-  };
-
-  upload.mediaDuration = function (file) {
-    if (file.$ngfDuration) {
-      var d = $q.defer();
-      $timeout(function () {
-        d.resolve(file.$ngfDuration);
-      });
-      return d.promise;
-    }
-    if (file.$ngfDurationPromise) return file.$ngfDurationPromise;
-
-    var deferred = $q.defer();
-    $timeout(function () {
-      if (file.type.indexOf('audio') !== 0 && file.type.indexOf('video') !== 0) {
-        deferred.reject('not media');
-        return;
-      }
-      upload.dataUrl(file).then(function (dataUrl) {
-        var el = angular.element(file.type.indexOf('audio') === 0 ? '<audio>' : '<video>')
-          .attr('src', dataUrl).css('visibility', 'none').css('position', 'fixed');
-
-        function success() {
-          var duration = el[0].duration;
-          file.$ngfDuration = duration;
-          el.remove();
-          deferred.resolve(duration);
-        }
-
-        function error() {
-          el.remove();
-          deferred.reject('load error');
-        }
-
-        el.on('loadedmetadata', success);
-        el.on('error', error);
-        var count = 0;
-
-        function checkLoadError() {
-          $timeout(function () {
-            if (el[0].parentNode) {
-              if (el[0].duration) {
-                success();
-              } else if (count > 10) {
-                error();
-              } else {
-                checkLoadError();
-              }
-            }
-          }, 1000);
-        }
-
-        checkLoadError();
-
-        angular.element(document.body).append(el);
-      }, function () {
-        deferred.reject('load error');
-      });
-    });
-
-    file.$ngfDurationPromise = deferred.promise;
-    file.$ngfDurationPromise['finally'](function () {
-      delete file.$ngfDurationPromise;
-    });
-    return file.$ngfDurationPromise;
-  };
-  return upload;
-}
-]);
-
-ngFileUpload.service('UploadResize', ['UploadValidate', '$q', function (UploadValidate, $q) {
-  var upload = UploadValidate;
-
-  /**
-   * Conserve aspect ratio of the original region. Useful when shrinking/enlarging
-   * images to fit into a certain area.
-   * Source:  http://stackoverflow.com/a/14731922
-   *
-   * @param {Number} srcWidth Source area width
-   * @param {Number} srcHeight Source area height
-   * @param {Number} maxWidth Nestable area maximum available width
-   * @param {Number} maxHeight Nestable area maximum available height
-   * @return {Object} { width, height }
-   */
-  var calculateAspectRatioFit = function (srcWidth, srcHeight, maxWidth, maxHeight, centerCrop) {
-    var ratio = centerCrop ? Math.max(maxWidth / srcWidth, maxHeight / srcHeight) :
-      Math.min(maxWidth / srcWidth, maxHeight / srcHeight);
-    return {
-      width: srcWidth * ratio, height: srcHeight * ratio,
-      marginX: srcWidth * ratio - maxWidth, marginY: srcHeight * ratio - maxHeight
-    };
-  };
-
-  // Extracted from https://github.com/romelgomez/angular-firebase-image-upload/blob/master/app/scripts/fileUpload.js#L89
-  var resize = function (imagen, width, height, quality, type, ratio, centerCrop, resizeIf) {
-    var deferred = $q.defer();
-    var canvasElement = document.createElement('canvas');
-    var imageElement = document.createElement('img');
-    imageElement.setAttribute('style', 'visibility:hidden;position:fixed;z-index:-100000');
-    document.body.appendChild(imageElement);
-
-    imageElement.onload = function () {
-      var imgWidth = imageElement.width, imgHeight = imageElement.height;
-      imageElement.parentNode.removeChild(imageElement);
-      if (resizeIf != null && resizeIf(imgWidth, imgHeight) === false) {
-        deferred.reject('resizeIf');
-        return;
-      }
-      try {
-        if (ratio) {
-          var ratioFloat = upload.ratioToFloat(ratio);
-          var imgRatio = imgWidth / imgHeight;
-          if (imgRatio < ratioFloat) {
-            width = imgWidth;
-            height = width / ratioFloat;
-          } else {
-            height = imgHeight;
-            width = height * ratioFloat;
-          }
-        }
-        if (!width) {
-          width = imgWidth;
-        }
-        if (!height) {
-          height = imgHeight;
-        }
-        var dimensions = calculateAspectRatioFit(imgWidth, imgHeight, width, height, centerCrop);
-        canvasElement.width = Math.min(dimensions.width, width);
-        canvasElement.height = Math.min(dimensions.height, height);
-        var context = canvasElement.getContext('2d');
-        context.drawImage(imageElement,
-          Math.min(0, -dimensions.marginX / 2), Math.min(0, -dimensions.marginY / 2),
-          dimensions.width, dimensions.height);
-        deferred.resolve(canvasElement.toDataURL(type || 'image/WebP', quality || 0.934));
-      } catch (e) {
-        deferred.reject(e);
-      }
-    };
-    imageElement.onerror = function () {
-      imageElement.parentNode.removeChild(imageElement);
-      deferred.reject();
-    };
-    imageElement.src = imagen;
-    return deferred.promise;
-  };
-
-  upload.dataUrltoBlob = function (dataurl, name, origSize) {
-    var arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1],
-      bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
-    while (n--) {
-      u8arr[n] = bstr.charCodeAt(n);
-    }
-    var blob = new window.Blob([u8arr], {type: mime});
-    blob.name = name;
-    blob.$ngfOrigSize = origSize;
-    return blob;
-  };
-
-  upload.isResizeSupported = function () {
-    var elem = document.createElement('canvas');
-    return window.atob && elem.getContext && elem.getContext('2d') && window.Blob;
-  };
-
-  if (upload.isResizeSupported()) {
-    // add name getter to the blob constructor prototype
-    Object.defineProperty(window.Blob.prototype, 'name', {
-      get: function () {
-        return this.$ngfName;
-      },
-      set: function (v) {
-        this.$ngfName = v;
-      },
-      configurable: true
-    });
-  }
-
-  upload.resize = function (file, options) {
-    if (file.type.indexOf('image') !== 0) return upload.emptyPromise(file);
-
-    var deferred = $q.defer();
-    upload.dataUrl(file, true).then(function (url) {
-      resize(url, options.width, options.height, options.quality, options.type || file.type,
-        options.ratio, options.centerCrop, options.resizeIf)
-        .then(function (dataUrl) {
-          if (file.type === 'image/jpeg' && options.restoreExif !== false) {
-            try {
-              dataUrl = upload.restoreExif(url, dataUrl);
-            } catch (e) {
-              setTimeout(function () {throw e;}, 1);
-            }
-          }
-          try {
-            var blob = upload.dataUrltoBlob(dataUrl, file.name, file.size);
-            deferred.resolve(blob);
-          } catch (e) {
-            deferred.reject(e);
-          }
-        }, function (r) {
-          if (r === 'resizeIf') {
-            deferred.resolve(file);
-          }
-          deferred.reject(r);
-        });
-    }, function (e) {
-      deferred.reject(e);
-    });
-    return deferred.promise;
-  };
-
-  return upload;
-}]);
-
-(function () {
-  ngFileUpload.directive('ngfDrop', ['$parse', '$timeout', '$window', 'Upload', '$http', '$q',
-    function ($parse, $timeout, $window, Upload, $http, $q) {
-      return {
-        restrict: 'AEC',
-        require: '?ngModel',
-        link: function (scope, elem, attr, ngModel) {
-          linkDrop(scope, elem, attr, ngModel, $parse, $timeout, $window, Upload, $http, $q);
-        }
-      };
-    }]);
-
-  ngFileUpload.directive('ngfNoFileDrop', function () {
-    return function (scope, elem) {
-      if (dropAvailable()) elem.css('display', 'none');
-    };
-  });
-
-  ngFileUpload.directive('ngfDropAvailable', ['$parse', '$timeout', 'Upload', function ($parse, $timeout, Upload) {
-    return function (scope, elem, attr) {
-      if (dropAvailable()) {
-        var model = $parse(Upload.attrGetter('ngfDropAvailable', attr));
-        $timeout(function () {
-          model(scope);
-          if (model.assign) {
-            model.assign(scope, true);
-          }
-        });
-      }
-    };
-  }]);
-
-  function linkDrop(scope, elem, attr, ngModel, $parse, $timeout, $window, upload, $http, $q) {
-    var available = dropAvailable();
-
-    var attrGetter = function (name, scope, params) {
-      return upload.attrGetter(name, attr, scope, params);
-    };
-
-    if (attrGetter('dropAvailable')) {
-      $timeout(function () {
-        if (scope[attrGetter('dropAvailable')]) {
-          scope[attrGetter('dropAvailable')].value = available;
-        } else {
-          scope[attrGetter('dropAvailable')] = available;
-        }
-      });
-    }
-    if (!available) {
-      if (attrGetter('ngfHideOnDropNotAvailable', scope) === true) {
-        elem.css('display', 'none');
-      }
-      return;
-    }
-
-    function isDisabled() {
-      return elem.attr('disabled') || attrGetter('ngfDropDisabled', scope);
-    }
-
-    if (attrGetter('ngfSelect') == null) {
-      upload.registerModelChangeValidator(ngModel, attr, scope);
-    }
-
-    var leaveTimeout = null;
-    var stopPropagation = $parse(attrGetter('ngfStopPropagation'));
-    var dragOverDelay = 1;
-    var actualDragOverClass;
-
-    elem[0].addEventListener('dragover', function (evt) {
-      if (isDisabled() || !upload.shouldUpdateOn('drop', attr, scope)) return;
-      evt.preventDefault();
-      if (stopPropagation(scope)) evt.stopPropagation();
-      // handling dragover events from the Chrome download bar
-      if (navigator.userAgent.indexOf('Chrome') > -1) {
-        var b = evt.dataTransfer.effectAllowed;
-        evt.dataTransfer.dropEffect = ('move' === b || 'linkMove' === b) ? 'move' : 'copy';
-      }
-      $timeout.cancel(leaveTimeout);
-      if (!actualDragOverClass) {
-        actualDragOverClass = 'C';
-        calculateDragOverClass(scope, attr, evt, function (clazz) {
-          actualDragOverClass = clazz;
-          elem.addClass(actualDragOverClass);
-          attrGetter('ngfDrag', scope, {$isDragging: true, $class: actualDragOverClass, $event: evt});
-        });
-      }
-    }, false);
-    elem[0].addEventListener('dragenter', function (evt) {
-      if (isDisabled() || !upload.shouldUpdateOn('drop', attr, scope)) return;
-      evt.preventDefault();
-      if (stopPropagation(scope)) evt.stopPropagation();
-    }, false);
-    elem[0].addEventListener('dragleave', function (evt) {
-      if (isDisabled() || !upload.shouldUpdateOn('drop', attr, scope)) return;
-      evt.preventDefault();
-      if (stopPropagation(scope)) evt.stopPropagation();
-      leaveTimeout = $timeout(function () {
-        if (actualDragOverClass) elem.removeClass(actualDragOverClass);
-        actualDragOverClass = null;
-        attrGetter('ngfDrag', scope, {$isDragging: false, $event: evt});
-      }, dragOverDelay || 100);
-    }, false);
-    elem[0].addEventListener('drop', function (evt) {
-      if (isDisabled() || !upload.shouldUpdateOn('drop', attr, scope)) return;
-      evt.preventDefault();
-      if (stopPropagation(scope)) evt.stopPropagation();
-      if (actualDragOverClass) elem.removeClass(actualDragOverClass);
-      actualDragOverClass = null;
-      extractFilesAndUpdateModel(evt.dataTransfer, evt, 'dropUrl');
-    }, false);
-    elem[0].addEventListener('paste', function (evt) {
-      if (navigator.userAgent.toLowerCase().indexOf('firefox') > -1 &&
-        attrGetter('ngfEnableFirefoxPaste', scope)) {
-        evt.preventDefault();
-      }
-      if (isDisabled() || !upload.shouldUpdateOn('paste', attr, scope)) return;
-      extractFilesAndUpdateModel(evt.clipboardData || evt.originalEvent.clipboardData, evt, 'pasteUrl');
-    }, false);
-
-    if (navigator.userAgent.toLowerCase().indexOf('firefox') > -1 &&
-      attrGetter('ngfEnableFirefoxPaste', scope)) {
-      elem.attr('contenteditable', true);
-      elem.on('keypress', function (e) {
-        if (!e.metaKey && !e.ctrlKey) {
-          e.preventDefault();
-        }
-      });
-    }
-
-    function extractFilesAndUpdateModel(source, evt, updateOnType) {
-      if (!source) return;
-      // html needs to be calculated on the same process otherwise the data will be wiped
-      // after promise resolve or setTimeout.
-      var html;
-      try {
-        html = source && source.getData && source.getData('text/html');
-      } catch (e) {/* Fix IE11 that throw error calling getData */
-      }
-      extractFiles(source.items, source.files, attrGetter('ngfAllowDir', scope) !== false,
-        attrGetter('multiple') || attrGetter('ngfMultiple', scope)).then(function (files) {
-        if (files.length) {
-          updateModel(files, evt);
-        } else {
-          extractFilesFromHtml(updateOnType, html).then(function (files) {
-            updateModel(files, evt);
-          });
-        }
-      });
-    }
-
-    function updateModel(files, evt) {
-      upload.updateModel(ngModel, attr, scope, attrGetter('ngfChange') || attrGetter('ngfDrop'), files, evt);
-    }
-
-    function extractFilesFromHtml(updateOn, html) {
-      if (!upload.shouldUpdateOn(updateOn, attr, scope) || typeof html !== 'string') return upload.rejectPromise([]);
-      var urls = [];
-      html.replace(/<(img src|img [^>]* src) *=\"([^\"]*)\"/gi, function (m, n, src) {
-        urls.push(src);
-      });
-      var promises = [], files = [];
-      if (urls.length) {
-        angular.forEach(urls, function (url) {
-          promises.push(upload.urlToBlob(url).then(function (blob) {
-            files.push(blob);
-          }));
-        });
-        var defer = $q.defer();
-        $q.all(promises).then(function () {
-          defer.resolve(files);
-        }, function (e) {
-          defer.reject(e);
-        });
-        return defer.promise;
-      }
-      return upload.emptyPromise();
-    }
-
-    function calculateDragOverClass(scope, attr, evt, callback) {
-      var obj = attrGetter('ngfDragOverClass', scope, {$event: evt}), dClass = 'dragover';
-      if (angular.isString(obj)) {
-        dClass = obj;
-      } else if (obj) {
-        if (obj.delay) dragOverDelay = obj.delay;
-        if (obj.accept || obj.reject) {
-          var items = evt.dataTransfer.items;
-          if (items == null || !items.length) {
-            dClass = obj.accept;
-          } else {
-            var pattern = obj.pattern || attrGetter('ngfPattern', scope, {$event: evt});
-            var len = items.length;
-            while (len--) {
-              if (!upload.validatePattern(items[len], pattern)) {
-                dClass = obj.reject;
-                break;
-              } else {
-                dClass = obj.accept;
-              }
-            }
-          }
-        }
-      }
-      callback(dClass);
-    }
-
-    function extractFiles(items, fileList, allowDir, multiple) {
-      var maxFiles = upload.getValidationAttr(attr, scope, 'maxFiles');
-      if (maxFiles == null) {
-        maxFiles = Number.MAX_VALUE;
-      }
-      var maxTotalSize = upload.getValidationAttr(attr, scope, 'maxTotalSize');
-      if (maxTotalSize == null) {
-        maxTotalSize = Number.MAX_VALUE;
-      }
-      var includeDir = attrGetter('ngfIncludeDir', scope);
-      var files = [], totalSize = 0;
-
-      function traverseFileTree(entry, path) {
-        var defer = $q.defer();
-        if (entry != null) {
-          if (entry.isDirectory) {
-            var promises = [upload.emptyPromise()];
-            if (includeDir) {
-              var file = {type: 'directory'};
-              file.name = file.path = (path || '') + entry.name;
-              files.push(file);
-            }
-            var dirReader = entry.createReader();
-            var entries = [];
-            var readEntries = function () {
-              dirReader.readEntries(function (results) {
-                try {
-                  if (!results.length) {
-                    angular.forEach(entries.slice(0), function (e) {
-                      if (files.length <= maxFiles && totalSize <= maxTotalSize) {
-                        promises.push(traverseFileTree(e, (path ? path : '') + entry.name + '/'));
-                      }
-                    });
-                    $q.all(promises).then(function () {
-                      defer.resolve();
-                    }, function (e) {
-                      defer.reject(e);
-                    });
-                  } else {
-                    entries = entries.concat(Array.prototype.slice.call(results || [], 0));
-                    readEntries();
-                  }
-                } catch (e) {
-                  defer.reject(e);
-                }
-              }, function (e) {
-                defer.reject(e);
-              });
-            };
-            readEntries();
-          } else {
-            entry.file(function (file) {
-              try {
-                file.path = (path ? path : '') + file.name;
-                if (includeDir) {
-                  file = upload.rename(file, file.path);
-                }
-                files.push(file);
-                totalSize += file.size;
-                defer.resolve();
-              } catch (e) {
-                defer.reject(e);
-              }
-            }, function (e) {
-              defer.reject(e);
-            });
-          }
-        }
-        return defer.promise;
-      }
-
-      var promises = [upload.emptyPromise()];
-
-      if (items && items.length > 0 && $window.location.protocol !== 'file:') {
-        for (var i = 0; i < items.length; i++) {
-          if (items[i].webkitGetAsEntry && items[i].webkitGetAsEntry() && items[i].webkitGetAsEntry().isDirectory) {
-            var entry = items[i].webkitGetAsEntry();
-            if (entry.isDirectory && !allowDir) {
-              continue;
-            }
-            if (entry != null) {
-              promises.push(traverseFileTree(entry));
-            }
-          } else {
-            var f = items[i].getAsFile();
-            if (f != null) {
-              files.push(f);
-              totalSize += f.size;
-            }
-          }
-          if (files.length > maxFiles || totalSize > maxTotalSize ||
-            (!multiple && files.length > 0)) break;
-        }
-      } else {
-        if (fileList != null) {
-          for (var j = 0; j < fileList.length; j++) {
-            var file = fileList.item(j);
-            if (file.type || file.size > 0) {
-              files.push(file);
-              totalSize += file.size;
-            }
-            if (files.length > maxFiles || totalSize > maxTotalSize ||
-              (!multiple && files.length > 0)) break;
-          }
-        }
-      }
-
-      var defer = $q.defer();
-      $q.all(promises).then(function () {
-        if (!multiple && !includeDir && files.length) {
-          var i = 0;
-          while (files[i] && files[i].type === 'directory') i++;
-          defer.resolve([files[i]]);
-        } else {
-          defer.resolve(files);
-        }
-      }, function (e) {
-        defer.reject(e);
-      });
-
-      return defer.promise;
-    }
-  }
-
-  function dropAvailable() {
-    var div = document.createElement('div');
-    return ('draggable' in div) && ('ondrop' in div) && !/Edge\/12./i.test(navigator.userAgent);
-  }
-
-})();
-
-// customized version of https://github.com/exif-js/exif-js
-ngFileUpload.service('UploadExif', ['UploadResize', '$q', function (UploadResize, $q) {
-  var upload = UploadResize;
-
-  upload.isExifSupported = function () {
-    return window.FileReader && new FileReader().readAsArrayBuffer && upload.isResizeSupported();
-  };
-
-  function applyTransform(ctx, orientation, width, height) {
-    switch (orientation) {
-      case 2:
-        return ctx.transform(-1, 0, 0, 1, width, 0);
-      case 3:
-        return ctx.transform(-1, 0, 0, -1, width, height);
-      case 4:
-        return ctx.transform(1, 0, 0, -1, 0, height);
-      case 5:
-        return ctx.transform(0, 1, 1, 0, 0, 0);
-      case 6:
-        return ctx.transform(0, 1, -1, 0, height, 0);
-      case 7:
-        return ctx.transform(0, -1, -1, 0, height, width);
-      case 8:
-        return ctx.transform(0, -1, 1, 0, 0, width);
-    }
-  }
-
-  upload.readOrientation = function (file) {
-    var defer = $q.defer();
-    var reader = new FileReader();
-    var slicedFile = file.slice ? file.slice(0, 64 * 1024) : file;
-    reader.readAsArrayBuffer(slicedFile);
-    reader.onerror = function (e) {
-      return defer.reject(e);
-    };
-    reader.onload = function (e) {
-      var result = {orientation: 1};
-      var view = new DataView(this.result);
-      if (view.getUint16(0, false) !== 0xFFD8) return defer.resolve(result);
-
-      var length = view.byteLength,
-        offset = 2;
-      while (offset < length) {
-        var marker = view.getUint16(offset, false);
-        offset += 2;
-        if (marker === 0xFFE1) {
-          if (view.getUint32(offset += 2, false) !== 0x45786966) return defer.resolve(result);
-
-          var little = view.getUint16(offset += 6, false) === 0x4949;
-          offset += view.getUint32(offset + 4, little);
-          var tags = view.getUint16(offset, little);
-          offset += 2;
-          for (var i = 0; i < tags; i++)
-            if (view.getUint16(offset + (i * 12), little) === 0x0112) {
-              var orientation = view.getUint16(offset + (i * 12) + 8, little);
-              if (orientation >= 2 && orientation <= 8) {
-                view.setUint16(offset + (i * 12) + 8, 1, little);
-                result.fixedArrayBuffer = e.target.result;
-              }
-              result.orientation = orientation;
-              return defer.resolve(result);
-            }
-        } else if ((marker & 0xFF00) !== 0xFF00) break;
-        else offset += view.getUint16(offset, false);
-      }
-      return defer.resolve(result);
-    };
-    return defer.promise;
-  };
-
-  function arrayBufferToBase64(buffer) {
-    var binary = '';
-    var bytes = new Uint8Array(buffer);
-    var len = bytes.byteLength;
-    for (var i = 0; i < len; i++) {
-      binary += String.fromCharCode(bytes[i]);
-    }
-    return window.btoa(binary);
-  }
-
-  upload.applyExifRotation = function (file) {
-    if (file.type.indexOf('image/jpeg') !== 0) {
-      return upload.emptyPromise(file);
-    }
-
-    var deferred = $q.defer();
-    upload.readOrientation(file).then(function (result) {
-      if (result.orientation < 2 || result.orientation > 8) {
-        return deferred.resolve(file);
-      }
-      upload.dataUrl(file, true).then(function (url) {
-        var canvas = document.createElement('canvas');
-        var img = document.createElement('img');
-
-        img.onload = function () {
-          try {
-            canvas.width = result.orientation > 4 ? img.height : img.width;
-            canvas.height = result.orientation > 4 ? img.width : img.height;
-            var ctx = canvas.getContext('2d');
-            applyTransform(ctx, result.orientation, img.width, img.height);
-            ctx.drawImage(img, 0, 0);
-            var dataUrl = canvas.toDataURL(file.type || 'image/WebP', 0.934);
-            dataUrl = upload.restoreExif(arrayBufferToBase64(result.fixedArrayBuffer), dataUrl);
-            var blob = upload.dataUrltoBlob(dataUrl, file.name);
-            deferred.resolve(blob);
-          } catch (e) {
-            return deferred.reject(e);
-          }
-        };
-        img.onerror = function () {
-          deferred.reject();
-        };
-        img.src = url;
-      }, function (e) {
-        deferred.reject(e);
-      });
-    }, function (e) {
-      deferred.reject(e);
-    });
-    return deferred.promise;
-  };
-
-  upload.restoreExif = function (orig, resized) {
-    var ExifRestorer = {};
-
-    ExifRestorer.KEY_STR = 'ABCDEFGHIJKLMNOP' +
-      'QRSTUVWXYZabcdef' +
-      'ghijklmnopqrstuv' +
-      'wxyz0123456789+/' +
-      '=';
-
-    ExifRestorer.encode64 = function (input) {
-      var output = '',
-        chr1, chr2, chr3 = '',
-        enc1, enc2, enc3, enc4 = '',
-        i = 0;
-
-      do {
-        chr1 = input[i++];
-        chr2 = input[i++];
-        chr3 = input[i++];
-
-        enc1 = chr1 >> 2;
-        enc2 = ((chr1 & 3) << 4) | (chr2 >> 4);
-        enc3 = ((chr2 & 15) << 2) | (chr3 >> 6);
-        enc4 = chr3 & 63;
-
-        if (isNaN(chr2)) {
-          enc3 = enc4 = 64;
-        } else if (isNaN(chr3)) {
-          enc4 = 64;
-        }
-
-        output = output +
-          this.KEY_STR.charAt(enc1) +
-          this.KEY_STR.charAt(enc2) +
-          this.KEY_STR.charAt(enc3) +
-          this.KEY_STR.charAt(enc4);
-        chr1 = chr2 = chr3 = '';
-        enc1 = enc2 = enc3 = enc4 = '';
-      } while (i < input.length);
-
-      return output;
-    };
-
-    ExifRestorer.restore = function (origFileBase64, resizedFileBase64) {
-      if (origFileBase64.match('data:image/jpeg;base64,')) {
-        origFileBase64 = origFileBase64.replace('data:image/jpeg;base64,', '');
-      }
-
-      var rawImage = this.decode64(origFileBase64);
-      var segments = this.slice2Segments(rawImage);
-
-      var image = this.exifManipulation(resizedFileBase64, segments);
-
-      return 'data:image/jpeg;base64,' + this.encode64(image);
-    };
-
-
-    ExifRestorer.exifManipulation = function (resizedFileBase64, segments) {
-      var exifArray = this.getExifArray(segments),
-        newImageArray = this.insertExif(resizedFileBase64, exifArray);
-      return new Uint8Array(newImageArray);
-    };
-
-
-    ExifRestorer.getExifArray = function (segments) {
-      var seg;
-      for (var x = 0; x < segments.length; x++) {
-        seg = segments[x];
-        if (seg[0] === 255 & seg[1] === 225) //(ff e1)
-        {
-          return seg;
-        }
-      }
-      return [];
-    };
-
-
-    ExifRestorer.insertExif = function (resizedFileBase64, exifArray) {
-      var imageData = resizedFileBase64.replace('data:image/jpeg;base64,', ''),
-        buf = this.decode64(imageData),
-        separatePoint = buf.indexOf(255, 3),
-        mae = buf.slice(0, separatePoint),
-        ato = buf.slice(separatePoint),
-        array = mae;
-
-      array = array.concat(exifArray);
-      array = array.concat(ato);
-      return array;
-    };
-
-
-    ExifRestorer.slice2Segments = function (rawImageArray) {
-      var head = 0,
-        segments = [];
-
-      while (1) {
-        if (rawImageArray[head] === 255 & rawImageArray[head + 1] === 218) {
-          break;
-        }
-        if (rawImageArray[head] === 255 & rawImageArray[head + 1] === 216) {
-          head += 2;
-        }
-        else {
-          var length = rawImageArray[head + 2] * 256 + rawImageArray[head + 3],
-            endPoint = head + length + 2,
-            seg = rawImageArray.slice(head, endPoint);
-          segments.push(seg);
-          head = endPoint;
-        }
-        if (head > rawImageArray.length) {
-          break;
-        }
-      }
-
-      return segments;
-    };
-
-
-    ExifRestorer.decode64 = function (input) {
-      var chr1, chr2, chr3 = '',
-        enc1, enc2, enc3, enc4 = '',
-        i = 0,
-        buf = [];
-
-      // remove all characters that are not A-Z, a-z, 0-9, +, /, or =
-      var base64test = /[^A-Za-z0-9\+\/\=]/g;
-      if (base64test.exec(input)) {
-        console.log('There were invalid base64 characters in the input text.\n' +
-          'Valid base64 characters are A-Z, a-z, 0-9, ' + ', ' / ',and "="\n' +
-          'Expect errors in decoding.');
-      }
-      input = input.replace(/[^A-Za-z0-9\+\/\=]/g, '');
-
-      do {
-        enc1 = this.KEY_STR.indexOf(input.charAt(i++));
-        enc2 = this.KEY_STR.indexOf(input.charAt(i++));
-        enc3 = this.KEY_STR.indexOf(input.charAt(i++));
-        enc4 = this.KEY_STR.indexOf(input.charAt(i++));
-
-        chr1 = (enc1 << 2) | (enc2 >> 4);
-        chr2 = ((enc2 & 15) << 4) | (enc3 >> 2);
-        chr3 = ((enc3 & 3) << 6) | enc4;
-
-        buf.push(chr1);
-
-        if (enc3 !== 64) {
-          buf.push(chr2);
-        }
-        if (enc4 !== 64) {
-          buf.push(chr3);
-        }
-
-        chr1 = chr2 = chr3 = '';
-        enc1 = enc2 = enc3 = enc4 = '';
-
-      } while (i < input.length);
-
-      return buf;
-    };
-
-    return ExifRestorer.restore(orig, resized);  //<= EXIF
-  };
-
-  return upload;
-}]);
-
-
-},{}],28:[function(require,module,exports){
-require('./dist/ng-file-upload-all');
-module.exports = 'ngFileUpload';
-},{"./dist/ng-file-upload-all":27}],29:[function(require,module,exports){
-'use strict';
-
-angular.module('pusher-angular', [])
-
-.factory('$pusher', ['$rootScope', '$channel', '$connection',
-  function ($rootScope, $channel, $connection) {
-
-    function PusherAngular (pusherClient) {
-      if (!(this instanceof PusherAngular)) {
-        return new PusherAngular(pusherClient);
-      }
-
-      this._assertValidClient(pusherClient);
-      this.client = pusherClient;
-      this.connection = $connection(pusherClient.connection, pusherClient);
-      this.channels = {};
-    }
-
-    PusherAngular.prototype = {
-      /**
-       * Subscribe the client to the specified channelName and returns the channel object.
-       * {@link https://pusher.com/docs/client_api_guide/client_public_channels#subscribe}
-       *
-       * @param {String} channelName name of the channel
-       * @returns {Object} channel object
-       */
-      subscribe: function (channelName) {
-        var channel = this.client.channel(channelName);
-        if(channel === undefined) {
-          channel = this.client.subscribe(channelName);
-        }
-        channel = $channel(channel, this);
-        this.channels[channelName] = channel;
-        return channel;
-      },
-
-      /**
-       * Unsubscribes the client from the specified channel
-       * {@link https://pusher.com/docs/client_api_guide/client_public_channels#unsubscribe}
-       *
-       * @param {String} channelName name of the channel
-       */
-      unsubscribe: function (channelName) {
-        if (this.client.channel(channelName)) {
-          this.client.unsubscribe(channelName);
-          if (this.channels[channelName]) { delete this.channels[channelName]; }
-        }
-      },
-
-      /**
-       * Binds to global events on the pusher client. You can attach behaviour to these events
-       * regardless of the channel the event is broadcast to.
-       *
-       * @param {String} eventName name of the event you want to bind to
-       * @param {Function|undefined} callback callback that you want called upon the event occurring
-       * @param {Object} context used as the `this` value when calling a handler
-       * @param {boolean} [invokeDigest=true] If set to `false` skips invoking $digest
-       * @returns {Function} the decorated version of the callback provided
-       */
-      bind: function (eventName, callback, context, invokeDigest) {
-        var skipDigest = (angular.isDefined(invokeDigest) && !invokeDigest),
-          decoratedCallback = function (data) {
-            callback(data);
-            if (!skipDigest) $rootScope.$digest();
-          };
-        this.client.bind(eventName, decoratedCallback, context);
-        return decoratedCallback;
-      },
-
-      /**
-       * Binds to all of the global client messages.
-       *
-       * @param {Function|undefined} callback callback that you want called upon a message being received
-       * @param {boolean} [invokeDigest=true] If set to `false` skips invoking $digest
-       */
-      bind_all: function (callback, invokeDigest) {
-        var skipDigest = (angular.isDefined(invokeDigest) && !invokeDigest);
-        this.client.bind_all(function (eventName, data) {
-          callback(eventName, data);
-          if (!skipDigest) $rootScope.$digest();
-        });
-      },
-
-      /**
-       * Unbinds from global events on the pusher client.
-       *
-       * @param {String} eventName name of the event you want to bind from
-       * @param {Function|undefined} decoratedCallback the decorated version of the callback that you want to unbind
-       * @param {Object} context used as the `this` value when calling a handler
-       */
-      unbind: function (eventName, decoratedCallback, context) {
-        this.client.unbind(eventName, decoratedCallback, context);
-      },
-
-      /**
-       * Disconnects the pusher client.
-       * {@link http://pusher.com/docs/client_api_guide/client_connect#disconnecting}
-       */
-      disconnect: function () {
-        this.client.disconnect();
-      },
-
-      /**
-       * Returns a pusher channel object.
-       * {@link https://pusher.com/docs/client_api_guide/client_channels#access}
-       *
-       * @param {String} channelName name of the channel
-       * @returns {Array} channel object
-       */
-      channel: function (channelName) {
-        return this.channels[channelName];
-      },
-
-      /**
-       * Returns a an array of the channels that the client is subscribed to.
-       * {@link https://pusher.com/docs/client_api_guide/client_channels#access}
-       *
-       * @returns {Array} array of subscribed channels
-       */
-      allChannels: function () {
-        return this.channels;
-      },
-
-      /**
-       * Asserts that the $pusher object is being initialised with valid pusherClient.
-       * Throws an error if pusherClient is invalid.
-       *
-       * @param {Object} pusherClient members object from base pusher channel object
-       */
-      _assertValidClient: function (pusherClient) {
-        if (!angular.isObject(pusherClient) ||
-            !angular.isObject(pusherClient.connection) ||
-            typeof(pusherClient.channel) !== 'function') {
-          throw new Error('Invalid Pusher client object');
-        }
-      }
-    };
-
-    return PusherAngular;
-  }
-])
-
-.factory('$channel', ['$rootScope', '$members',
-  function ($rootScope, $members) {
-
-    function checkPresenceOrPrivateChannel (channelName) {
-      if (channelName.indexOf('presence-') == -1 && channelName.indexOf('private-') == -1) {
-        throw new Error('Presence or private channel required');
-      }
-    }
-
-    function $channel (baseChannel, $pusherClient) {
-      if (!(this instanceof $channel)) {
-        return new $channel(baseChannel, $pusherClient);
-      }
-
-      this._assertValidChannel(baseChannel);
-      this.baseChannel = baseChannel;
-      this.client = $pusherClient;
-      this.name = baseChannel.name;
-
-      if (baseChannel.name.indexOf('presence') == -1) {
-        this.members = function () { throw new Error('Members object only exists for presence channels'); }
-      } else {
-        this.members = $members(baseChannel.members, baseChannel);
-      }
-    }
-
-    $channel.prototype = {
-      /**
-       * Binds to the given event name on the channel.
-       *
-       * @param {String} eventName name of the event you want to bind to
-       * @param {Function|undefined} callback callback that you want called upon the event occurring
-       * @param {Object} context used as the `this` value when calling a handler
-       * @param {boolean} [invokeDigest=true] If set to `false` skips invoking $digest
-       * @returns {Function} the decorated version of the callback provided
-       */
-      bind: function (eventName, callback, context, invokeDigest) {
-        var skipDigest = (angular.isDefined(invokeDigest) && !invokeDigest),
-            decoratedCallback = function (data) {
-              callback(data);
-              if (!skipDigest) $rootScope.$digest();
-            };
-        this.baseChannel.bind(eventName, decoratedCallback, context);
-        return decoratedCallback;
-      },
-
-      /**
-       * Unbinds from the given event name on the channel.
-       *
-       * @param {String} eventName name of the event you want to bind from
-       * @param {Function|undefined} decoratedCallback the decorated version of the callback that you want to unbind
-       * @param {Object} context used as the `this` value when calling a handler
-       */
-      unbind: function (eventName, decoratedCallback, context) {
-        this.baseChannel.unbind(eventName, decoratedCallback, context);
-      },
-
-      /**
-       * Binds to all of the channel events.
-       *
-       * @param {Function|undefined} callback callback that you want called upon the event occurring
-       * @param {boolean} [invokeDigest=true] If set to `false` skips invoking $digest
-       */
-      bind_all: function (callback, invokeDigest) {
-        var skipDigest = (angular.isDefined(invokeDigest) && !invokeDigest);
-        this.baseChannel.bind_all(function (eventName, data) {
-          callback(eventName, data);
-          if (!skipDigest) $rootScope.$digest();
-        });
-      },
-
-      /**
-       * Triggers a client event.
-       * {@link https://pusher.com/docs/client_api_guide/client_events#trigger-events}
-       *
-       * @param {String} channelName name of the channel
-       * @param {String} eventName name of the event
-       * @param {Object} obj object that you wish to pass along with your client event
-       * @returns {}
-       */
-      trigger: function (eventName, obj) {
-        checkPresenceOrPrivateChannel(this.name);
-        if (eventName.indexOf('client-') == -1) { throw new Error('Event name requires \'client-\' prefix'); }
-        return this.baseChannel.trigger(eventName, obj);
-      },
-
-      /**
-       * Asserts that the $channel object is being initialised with valid baseChannel.
-       * Throws an error if baseChannel is invalid.
-       *
-       * @param {Object} baseChannel channel object from base pusher channel object
-       */
-      _assertValidChannel: function (baseChannel) {
-        if (!angular.isObject(baseChannel) ||
-            typeof(baseChannel.name) !== 'string') {
-          throw new Error('Invalid Pusher channel object');
-        }
-      }
-    };
-
-    return $channel;
-  }
-])
-
-.factory('$members', ['$rootScope',
-  function ($rootScope) {
-
-    function $members (baseMembers, baseChannel) {
-      if (!(this instanceof $members)) {
-        return new $members(baseMembers, baseChannel);
-      }
-      var self = this;
-
-      this._assertValidMembers(baseMembers);
-      this.baseMembers = baseMembers;
-      this.baseChannel = baseChannel;
-      this.me = {};
-      this.count = 0;
-      this.members = {};
-
-      baseChannel.bind('pusher:subscription_succeeded', function (members) {
-        self.me = members.me;
-        self.count = members.count;
-        self.members = members.members;
-        $rootScope.$digest();
-      });
-
-      baseChannel.bind('pusher:member_added', function (member) {
-        self.count++;
-        if (member.info) {
-          self.members[member.id.toString()] = member.info;
-        } else {
-          self.members[member.id.toString()] = null;
-        }
-        $rootScope.$digest();
-      });
-
-      baseChannel.bind('pusher:member_removed', function (member) {
-        self.count--;
-        delete self.members[member.id.toString()];
-        $rootScope.$digest();
-      });
-    }
-
-    $members.prototype = {
-     /**
-      * Returns member's info for given id. Resulting object containts two fields - id and info.
-      *
-      * @param {Number} id user's id
-      * @return {Object} member's info or null
-      */
-      get: function (id) {
-        return this.baseMembers.get(id);
-      },
-
-      /**
-       * Calls back for each member in unspecified order.
-       *
-       * @param {Function} callback callback function
-       */
-      each: function (callback) {
-        this.baseMembers.each(function (member) {
-          callback(member);
-          $rootScope.$digest();
-        });
-      },
-
-      /**
-       * Asserts that the $members object is being initialised with valid baseMembers.
-       * Throws an error if baseMembers is invalid.
-       *
-       * @param {Object} baseMembers members object from base pusher channel object
-       */
-      _assertValidMembers: function (baseMembers) {
-        if (!angular.isObject(baseMembers) ||
-            typeof(baseMembers.me) !== 'object') {
-          throw new Error('Invalid Pusher channel members object');
-        }
-      }
-    };
-
-    return $members;
-  }
-])
-
-.factory('$connection', ['$rootScope',
-  function ($rootScope) {
-
-    function $connection (baseConnection, baseClient) {
-      if (!(this instanceof $connection)) {
-        return new $connection(baseConnection, baseClient);
-      }
-
-      this._assertValidConnection(baseConnection);
-      this.baseConnection = baseConnection;
-      this.baseClient = baseClient;
-    }
-
-    $connection.prototype = {
-      /**
-       * Binds to the given event name on the connection.
-       *
-       * @param {String} eventName name of the event you want to bind to
-       * @param {Function|undefined} callback callback that you want called upon the event occurring
-       * @param {Object} context used as the `this` value when calling a handler
-       * @param {boolean} [invokeDigest=true] If set to `false` skips invoking $digest
-       */
-      bind: function (eventName, callback, context, invokeDigest) {
-        var skipDigest = (angular.isDefined(invokeDigest) && !invokeDigest);
-        this.baseConnection.bind(eventName, function (data) {
-          callback(data);
-          if (!skipDigest) $rootScope.$digest();
-        }, context);
-      },
-
-      /**
-       * Binds to all of the global connection events.
-       *
-       * @param {Function|undefined} callback callback that you want called upon the event occurring
-       * @param {boolean} [invokeDigest=true] If set to `false` skips invoking $digest
-       */
-      bind_all: function (callback, invokeDigest) {
-        var skipDigest = (angular.isDefined(invokeDigest) && !invokeDigest);
-        this.baseConnection.bind_all(function (eventName, data) {
-          callback(eventName, data);
-          if (!skipDigest) $rootScope.$digest();
-        });
-      },
-
-      /**
-       * Asserts that the $connection object is being initialised with valid baseConnection.
-       * Throws an error if baseConnection is invalid.
-       *
-       * @param {Object} baseConnection connection object from base pusher object
-       */
-      _assertValidConnection: function (baseConnection) {
-        if (!angular.isObject(baseConnection)) {
-          throw new Error('Invalid Pusher connection object');
-        }
-      }
-    };
-
-    return $connection;
-  }
-]);
-
-},{}],30:[function(require,module,exports){
-/*!
- * Pusher JavaScript Library v4.1.0
- * https://pusher.com/
- *
- * Copyright 2017, Pusher
- * Released under the MIT licence.
- */
-
-(function webpackUniversalModuleDefinition(root, factory) {
-	if(typeof exports === 'object' && typeof module === 'object')
-		module.exports = factory();
-	else if(typeof define === 'function' && define.amd)
-		define([], factory);
-	else if(typeof exports === 'object')
-		exports["Pusher"] = factory();
-	else
-		root["Pusher"] = factory();
-})(this, function() {
-return /******/ (function(modules) { // webpackBootstrap
-/******/ 	// The module cache
-/******/ 	var installedModules = {};
-
-/******/ 	// The require function
-/******/ 	function __webpack_require__(moduleId) {
-
-/******/ 		// Check if module is in cache
-/******/ 		if(installedModules[moduleId])
-/******/ 			return installedModules[moduleId].exports;
-
-/******/ 		// Create a new module (and put it into the cache)
-/******/ 		var module = installedModules[moduleId] = {
-/******/ 			exports: {},
-/******/ 			id: moduleId,
-/******/ 			loaded: false
-/******/ 		};
-
-/******/ 		// Execute the module function
-/******/ 		modules[moduleId].call(module.exports, module, module.exports, __webpack_require__);
-
-/******/ 		// Flag the module as loaded
-/******/ 		module.loaded = true;
-
-/******/ 		// Return the exports of the module
-/******/ 		return module.exports;
-/******/ 	}
-
-
-/******/ 	// expose the modules object (__webpack_modules__)
-/******/ 	__webpack_require__.m = modules;
-
-/******/ 	// expose the module cache
-/******/ 	__webpack_require__.c = installedModules;
-
-/******/ 	// __webpack_public_path__
-/******/ 	__webpack_require__.p = "";
-
-/******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(0);
-/******/ })
-/************************************************************************/
-/******/ ([
-/* 0 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var pusher_1 = __webpack_require__(1);
-	module.exports = pusher_1["default"];
-
-
-/***/ }),
-/* 1 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var runtime_1 = __webpack_require__(2);
-	var Collections = __webpack_require__(9);
-	var dispatcher_1 = __webpack_require__(23);
-	var timeline_1 = __webpack_require__(38);
-	var level_1 = __webpack_require__(39);
-	var StrategyBuilder = __webpack_require__(40);
-	var timers_1 = __webpack_require__(12);
-	var defaults_1 = __webpack_require__(5);
-	var DefaultConfig = __webpack_require__(62);
-	var logger_1 = __webpack_require__(8);
-	var factory_1 = __webpack_require__(42);
-	var Pusher = (function () {
-	    function Pusher(app_key, options) {
-	        var _this = this;
-	        checkAppKey(app_key);
-	        options = options || {};
-	        this.key = app_key;
-	        this.config = Collections.extend(DefaultConfig.getGlobalConfig(), options.cluster ? DefaultConfig.getClusterConfig(options.cluster) : {}, options);
-	        this.channels = factory_1["default"].createChannels();
-	        this.global_emitter = new dispatcher_1["default"]();
-	        this.sessionID = Math.floor(Math.random() * 1000000000);
-	        this.timeline = new timeline_1["default"](this.key, this.sessionID, {
-	            cluster: this.config.cluster,
-	            features: Pusher.getClientFeatures(),
-	            params: this.config.timelineParams || {},
-	            limit: 50,
-	            level: level_1["default"].INFO,
-	            version: defaults_1["default"].VERSION
-	        });
-	        if (!this.config.disableStats) {
-	            this.timelineSender = factory_1["default"].createTimelineSender(this.timeline, {
-	                host: this.config.statsHost,
-	                path: "/timeline/v2/" + runtime_1["default"].TimelineTransport.name
-	            });
-	        }
-	        var getStrategy = function (options) {
-	            var config = Collections.extend({}, _this.config, options);
-	            return StrategyBuilder.build(runtime_1["default"].getDefaultStrategy(config), config);
-	        };
-	        this.connection = factory_1["default"].createConnectionManager(this.key, Collections.extend({ getStrategy: getStrategy,
-	            timeline: this.timeline,
-	            activityTimeout: this.config.activity_timeout,
-	            pongTimeout: this.config.pong_timeout,
-	            unavailableTimeout: this.config.unavailable_timeout
-	        }, this.config, { encrypted: this.isEncrypted() }));
-	        this.connection.bind('connected', function () {
-	            _this.subscribeAll();
-	            if (_this.timelineSender) {
-	                _this.timelineSender.send(_this.connection.isEncrypted());
-	            }
-	        });
-	        this.connection.bind('message', function (params) {
-	            var internal = (params.event.indexOf('pusher_internal:') === 0);
-	            if (params.channel) {
-	                var channel = _this.channel(params.channel);
-	                if (channel) {
-	                    channel.handleEvent(params.event, params.data);
-	                }
-	            }
-	            if (!internal) {
-	                _this.global_emitter.emit(params.event, params.data);
-	            }
-	        });
-	        this.connection.bind('connecting', function () {
-	            _this.channels.disconnect();
-	        });
-	        this.connection.bind('disconnected', function () {
-	            _this.channels.disconnect();
-	        });
-	        this.connection.bind('error', function (err) {
-	            logger_1["default"].warn('Error', err);
-	        });
-	        Pusher.instances.push(this);
-	        this.timeline.info({ instances: Pusher.instances.length });
-	        if (Pusher.isReady) {
-	            this.connect();
-	        }
-	    }
-	    Pusher.ready = function () {
-	        Pusher.isReady = true;
-	        for (var i = 0, l = Pusher.instances.length; i < l; i++) {
-	            Pusher.instances[i].connect();
-	        }
-	    };
-	    Pusher.log = function (message) {
-	        if (Pusher.logToConsole && (window).console && (window).console.log) {
-	            (window).console.log(message);
-	        }
-	    };
-	    Pusher.getClientFeatures = function () {
-	        return Collections.keys(Collections.filterObject({ "ws": runtime_1["default"].Transports.ws }, function (t) { return t.isSupported({}); }));
-	    };
-	    Pusher.prototype.channel = function (name) {
-	        return this.channels.find(name);
-	    };
-	    Pusher.prototype.allChannels = function () {
-	        return this.channels.all();
-	    };
-	    Pusher.prototype.connect = function () {
-	        this.connection.connect();
-	        if (this.timelineSender) {
-	            if (!this.timelineSenderTimer) {
-	                var encrypted = this.connection.isEncrypted();
-	                var timelineSender = this.timelineSender;
-	                this.timelineSenderTimer = new timers_1.PeriodicTimer(60000, function () {
-	                    timelineSender.send(encrypted);
-	                });
-	            }
-	        }
-	    };
-	    Pusher.prototype.disconnect = function () {
-	        this.connection.disconnect();
-	        if (this.timelineSenderTimer) {
-	            this.timelineSenderTimer.ensureAborted();
-	            this.timelineSenderTimer = null;
-	        }
-	    };
-	    Pusher.prototype.bind = function (event_name, callback, context) {
-	        this.global_emitter.bind(event_name, callback, context);
-	        return this;
-	    };
-	    Pusher.prototype.unbind = function (event_name, callback, context) {
-	        this.global_emitter.unbind(event_name, callback, context);
-	        return this;
-	    };
-	    Pusher.prototype.bind_global = function (callback) {
-	        this.global_emitter.bind_global(callback);
-	        return this;
-	    };
-	    Pusher.prototype.unbind_global = function (callback) {
-	        this.global_emitter.unbind_global(callback);
-	        return this;
-	    };
-	    Pusher.prototype.unbind_all = function (callback) {
-	        this.global_emitter.unbind_all();
-	        return this;
-	    };
-	    Pusher.prototype.subscribeAll = function () {
-	        var channelName;
-	        for (channelName in this.channels.channels) {
-	            if (this.channels.channels.hasOwnProperty(channelName)) {
-	                this.subscribe(channelName);
-	            }
-	        }
-	    };
-	    Pusher.prototype.subscribe = function (channel_name) {
-	        var channel = this.channels.add(channel_name, this);
-	        if (channel.subscriptionPending && channel.subscriptionCancelled) {
-	            channel.reinstateSubscription();
-	        }
-	        else if (!channel.subscriptionPending && this.connection.state === "connected") {
-	            channel.subscribe();
-	        }
-	        return channel;
-	    };
-	    Pusher.prototype.unsubscribe = function (channel_name) {
-	        var channel = this.channels.find(channel_name);
-	        if (channel && channel.subscriptionPending) {
-	            channel.cancelSubscription();
-	        }
-	        else {
-	            channel = this.channels.remove(channel_name);
-	            if (channel && this.connection.state === "connected") {
-	                channel.unsubscribe();
-	            }
-	        }
-	    };
-	    Pusher.prototype.send_event = function (event_name, data, channel) {
-	        return this.connection.send_event(event_name, data, channel);
-	    };
-	    Pusher.prototype.isEncrypted = function () {
-	        if (runtime_1["default"].getProtocol() === "https:") {
-	            return true;
-	        }
-	        else {
-	            return Boolean(this.config.encrypted);
-	        }
-	    };
-	    Pusher.instances = [];
-	    Pusher.isReady = false;
-	    Pusher.logToConsole = false;
-	    Pusher.Runtime = runtime_1["default"];
-	    Pusher.ScriptReceivers = runtime_1["default"].ScriptReceivers;
-	    Pusher.DependenciesReceivers = runtime_1["default"].DependenciesReceivers;
-	    Pusher.auth_callbacks = runtime_1["default"].auth_callbacks;
-	    return Pusher;
-	}());
-	exports.__esModule = true;
-	exports["default"] = Pusher;
-	function checkAppKey(key) {
-	    if (key === null || key === undefined) {
-	        throw "You must pass your app key when you instantiate Pusher.";
-	    }
-	}
-	runtime_1["default"].setup(Pusher);
-
-
-/***/ }),
-/* 2 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var dependencies_1 = __webpack_require__(3);
-	var xhr_auth_1 = __webpack_require__(7);
-	var jsonp_auth_1 = __webpack_require__(14);
-	var script_request_1 = __webpack_require__(15);
-	var jsonp_request_1 = __webpack_require__(16);
-	var script_receiver_factory_1 = __webpack_require__(4);
-	var jsonp_timeline_1 = __webpack_require__(17);
-	var transports_1 = __webpack_require__(18);
-	var net_info_1 = __webpack_require__(25);
-	var default_strategy_1 = __webpack_require__(26);
-	var transport_connection_initializer_1 = __webpack_require__(27);
-	var http_1 = __webpack_require__(28);
-	var Runtime = {
-	    nextAuthCallbackID: 1,
-	    auth_callbacks: {},
-	    ScriptReceivers: script_receiver_factory_1.ScriptReceivers,
-	    DependenciesReceivers: dependencies_1.DependenciesReceivers,
-	    getDefaultStrategy: default_strategy_1["default"],
-	    Transports: transports_1["default"],
-	    transportConnectionInitializer: transport_connection_initializer_1["default"],
-	    HTTPFactory: http_1["default"],
-	    TimelineTransport: jsonp_timeline_1["default"],
-	    getXHRAPI: function () {
-	        return window.XMLHttpRequest;
-	    },
-	    getWebSocketAPI: function () {
-	        return window.WebSocket || window.MozWebSocket;
-	    },
-	    setup: function (PusherClass) {
-	        var _this = this;
-	        window.Pusher = PusherClass;
-	        var initializeOnDocumentBody = function () {
-	            _this.onDocumentBody(PusherClass.ready);
-	        };
-	        if (!window.JSON) {
-	            dependencies_1.Dependencies.load("json2", {}, initializeOnDocumentBody);
-	        }
-	        else {
-	            initializeOnDocumentBody();
-	        }
-	    },
-	    getDocument: function () {
-	        return document;
-	    },
-	    getProtocol: function () {
-	        return this.getDocument().location.protocol;
-	    },
-	    getAuthorizers: function () {
-	        return { ajax: xhr_auth_1["default"], jsonp: jsonp_auth_1["default"] };
-	    },
-	    onDocumentBody: function (callback) {
-	        var _this = this;
-	        if (document.body) {
-	            callback();
-	        }
-	        else {
-	            setTimeout(function () {
-	                _this.onDocumentBody(callback);
-	            }, 0);
-	        }
-	    },
-	    createJSONPRequest: function (url, data) {
-	        return new jsonp_request_1["default"](url, data);
-	    },
-	    createScriptRequest: function (src) {
-	        return new script_request_1["default"](src);
-	    },
-	    getLocalStorage: function () {
-	        try {
-	            return window.localStorage;
-	        }
-	        catch (e) {
-	            return undefined;
-	        }
-	    },
-	    createXHR: function () {
-	        if (this.getXHRAPI()) {
-	            return this.createXMLHttpRequest();
-	        }
-	        else {
-	            return this.createMicrosoftXHR();
-	        }
-	    },
-	    createXMLHttpRequest: function () {
-	        var Constructor = this.getXHRAPI();
-	        return new Constructor();
-	    },
-	    createMicrosoftXHR: function () {
-	        return new ActiveXObject("Microsoft.XMLHTTP");
-	    },
-	    getNetwork: function () {
-	        return net_info_1.Network;
-	    },
-	    createWebSocket: function (url) {
-	        var Constructor = this.getWebSocketAPI();
-	        return new Constructor(url);
-	    },
-	    createSocketRequest: function (method, url) {
-	        if (this.isXHRSupported()) {
-	            return this.HTTPFactory.createXHR(method, url);
-	        }
-	        else if (this.isXDRSupported(url.indexOf("https:") === 0)) {
-	            return this.HTTPFactory.createXDR(method, url);
-	        }
-	        else {
-	            throw "Cross-origin HTTP requests are not supported";
-	        }
-	    },
-	    isXHRSupported: function () {
-	        var Constructor = this.getXHRAPI();
-	        return Boolean(Constructor) && (new Constructor()).withCredentials !== undefined;
-	    },
-	    isXDRSupported: function (encrypted) {
-	        var protocol = encrypted ? "https:" : "http:";
-	        var documentProtocol = this.getProtocol();
-	        return Boolean((window['XDomainRequest'])) && documentProtocol === protocol;
-	    },
-	    addUnloadListener: function (listener) {
-	        if (window.addEventListener !== undefined) {
-	            window.addEventListener("unload", listener, false);
-	        }
-	        else if (window.attachEvent !== undefined) {
-	            window.attachEvent("onunload", listener);
-	        }
-	    },
-	    removeUnloadListener: function (listener) {
-	        if (window.addEventListener !== undefined) {
-	            window.removeEventListener("unload", listener, false);
-	        }
-	        else if (window.detachEvent !== undefined) {
-	            window.detachEvent("onunload", listener);
-	        }
-	    }
-	};
-	exports.__esModule = true;
-	exports["default"] = Runtime;
-
-
-/***/ }),
-/* 3 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var script_receiver_factory_1 = __webpack_require__(4);
-	var defaults_1 = __webpack_require__(5);
-	var dependency_loader_1 = __webpack_require__(6);
-	exports.DependenciesReceivers = new script_receiver_factory_1.ScriptReceiverFactory("_pusher_dependencies", "Pusher.DependenciesReceivers");
-	exports.Dependencies = new dependency_loader_1["default"]({
-	    cdn_http: defaults_1["default"].cdn_http,
-	    cdn_https: defaults_1["default"].cdn_https,
-	    version: defaults_1["default"].VERSION,
-	    suffix: defaults_1["default"].dependency_suffix,
-	    receivers: exports.DependenciesReceivers
-	});
-
-
-/***/ }),
-/* 4 */
-/***/ (function(module, exports) {
-
-	"use strict";
-	var ScriptReceiverFactory = (function () {
-	    function ScriptReceiverFactory(prefix, name) {
-	        this.lastId = 0;
-	        this.prefix = prefix;
-	        this.name = name;
-	    }
-	    ScriptReceiverFactory.prototype.create = function (callback) {
-	        this.lastId++;
-	        var number = this.lastId;
-	        var id = this.prefix + number;
-	        var name = this.name + "[" + number + "]";
-	        var called = false;
-	        var callbackWrapper = function () {
-	            if (!called) {
-	                callback.apply(null, arguments);
-	                called = true;
-	            }
-	        };
-	        this[number] = callbackWrapper;
-	        return { number: number, id: id, name: name, callback: callbackWrapper };
-	    };
-	    ScriptReceiverFactory.prototype.remove = function (receiver) {
-	        delete this[receiver.number];
-	    };
-	    return ScriptReceiverFactory;
-	}());
-	exports.ScriptReceiverFactory = ScriptReceiverFactory;
-	exports.ScriptReceivers = new ScriptReceiverFactory("_pusher_script_", "Pusher.ScriptReceivers");
-
-
-/***/ }),
-/* 5 */
-/***/ (function(module, exports) {
-
-	"use strict";
-	var Defaults = {
-	    VERSION: "4.1.0",
-	    PROTOCOL: 7,
-	    host: 'ws.pusherapp.com',
-	    ws_port: 80,
-	    wss_port: 443,
-	    sockjs_host: 'sockjs.pusher.com',
-	    sockjs_http_port: 80,
-	    sockjs_https_port: 443,
-	    sockjs_path: "/pusher",
-	    stats_host: 'stats.pusher.com',
-	    channel_auth_endpoint: '/pusher/auth',
-	    channel_auth_transport: 'ajax',
-	    activity_timeout: 120000,
-	    pong_timeout: 30000,
-	    unavailable_timeout: 10000,
-	    cdn_http: 'http://js.pusher.com',
-	    cdn_https: 'https://js.pusher.com',
-	    dependency_suffix: ''
-	};
-	exports.__esModule = true;
-	exports["default"] = Defaults;
-
-
-/***/ }),
-/* 6 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var script_receiver_factory_1 = __webpack_require__(4);
-	var runtime_1 = __webpack_require__(2);
-	var DependencyLoader = (function () {
-	    function DependencyLoader(options) {
-	        this.options = options;
-	        this.receivers = options.receivers || script_receiver_factory_1.ScriptReceivers;
-	        this.loading = {};
-	    }
-	    DependencyLoader.prototype.load = function (name, options, callback) {
-	        var self = this;
-	        if (self.loading[name] && self.loading[name].length > 0) {
-	            self.loading[name].push(callback);
-	        }
-	        else {
-	            self.loading[name] = [callback];
-	            var request = runtime_1["default"].createScriptRequest(self.getPath(name, options));
-	            var receiver = self.receivers.create(function (error) {
-	                self.receivers.remove(receiver);
-	                if (self.loading[name]) {
-	                    var callbacks = self.loading[name];
-	                    delete self.loading[name];
-	                    var successCallback = function (wasSuccessful) {
-	                        if (!wasSuccessful) {
-	                            request.cleanup();
-	                        }
-	                    };
-	                    for (var i = 0; i < callbacks.length; i++) {
-	                        callbacks[i](error, successCallback);
-	                    }
-	                }
-	            });
-	            request.send(receiver);
-	        }
-	    };
-	    DependencyLoader.prototype.getRoot = function (options) {
-	        var cdn;
-	        var protocol = runtime_1["default"].getDocument().location.protocol;
-	        if ((options && options.encrypted) || protocol === "https:") {
-	            cdn = this.options.cdn_https;
-	        }
-	        else {
-	            cdn = this.options.cdn_http;
-	        }
-	        return cdn.replace(/\/*$/, "") + "/" + this.options.version;
-	    };
-	    DependencyLoader.prototype.getPath = function (name, options) {
-	        return this.getRoot(options) + '/' + name + this.options.suffix + '.js';
-	    };
-	    ;
-	    return DependencyLoader;
-	}());
-	exports.__esModule = true;
-	exports["default"] = DependencyLoader;
-
-
-/***/ }),
-/* 7 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var logger_1 = __webpack_require__(8);
-	var runtime_1 = __webpack_require__(2);
-	var ajax = function (context, socketId, callback) {
-	    var self = this, xhr;
-	    xhr = runtime_1["default"].createXHR();
-	    xhr.open("POST", self.options.authEndpoint, true);
-	    xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-	    for (var headerName in this.authOptions.headers) {
-	        xhr.setRequestHeader(headerName, this.authOptions.headers[headerName]);
-	    }
-	    xhr.onreadystatechange = function () {
-	        if (xhr.readyState === 4) {
-	            if (xhr.status === 200) {
-	                var data, parsed = false;
-	                try {
-	                    data = JSON.parse(xhr.responseText);
-	                    parsed = true;
-	                }
-	                catch (e) {
-	                    callback(true, 'JSON returned from webapp was invalid, yet status code was 200. Data was: ' + xhr.responseText);
-	                }
-	                if (parsed) {
-	                    callback(false, data);
-	                }
-	            }
-	            else {
-	                logger_1["default"].warn("Couldn't get auth info from your webapp", xhr.status);
-	                callback(true, xhr.status);
-	            }
-	        }
-	    };
-	    xhr.send(this.composeQuery(socketId));
-	    return xhr;
-	};
-	exports.__esModule = true;
-	exports["default"] = ajax;
-
-
-/***/ }),
-/* 8 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var collections_1 = __webpack_require__(9);
-	var pusher_1 = __webpack_require__(1);
-	var Logger = {
-	    debug: function () {
-	        var args = [];
-	        for (var _i = 0; _i < arguments.length; _i++) {
-	            args[_i - 0] = arguments[_i];
-	        }
-	        if (!pusher_1["default"].log) {
-	            return;
-	        }
-	        pusher_1["default"].log(collections_1.stringify.apply(this, arguments));
-	    },
-	    warn: function () {
-	        var args = [];
-	        for (var _i = 0; _i < arguments.length; _i++) {
-	            args[_i - 0] = arguments[_i];
-	        }
-	        var message = collections_1.stringify.apply(this, arguments);
-	        if ((window).console) {
-	            if ((window).console.warn) {
-	                (window).console.warn(message);
-	            }
-	            else if ((window).console.log) {
-	                (window).console.log(message);
-	            }
-	        }
-	        if (pusher_1["default"].log) {
-	            pusher_1["default"].log(message);
-	        }
-	    }
-	};
-	exports.__esModule = true;
-	exports["default"] = Logger;
-
-
-/***/ }),
-/* 9 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var base64_1 = __webpack_require__(10);
-	var util_1 = __webpack_require__(11);
-	function extend(target) {
-	    var sources = [];
-	    for (var _i = 1; _i < arguments.length; _i++) {
-	        sources[_i - 1] = arguments[_i];
-	    }
-	    for (var i = 0; i < sources.length; i++) {
-	        var extensions = sources[i];
-	        for (var property in extensions) {
-	            if (extensions[property] && extensions[property].constructor &&
-	                extensions[property].constructor === Object) {
-	                target[property] = extend(target[property] || {}, extensions[property]);
-	            }
-	            else {
-	                target[property] = extensions[property];
-	            }
-	        }
-	    }
-	    return target;
-	}
-	exports.extend = extend;
-	function stringify() {
-	    var m = ["Pusher"];
-	    for (var i = 0; i < arguments.length; i++) {
-	        if (typeof arguments[i] === "string") {
-	            m.push(arguments[i]);
-	        }
-	        else {
-	            m.push(safeJSONStringify(arguments[i]));
-	        }
-	    }
-	    return m.join(" : ");
-	}
-	exports.stringify = stringify;
-	function arrayIndexOf(array, item) {
-	    var nativeIndexOf = Array.prototype.indexOf;
-	    if (array === null) {
-	        return -1;
-	    }
-	    if (nativeIndexOf && array.indexOf === nativeIndexOf) {
-	        return array.indexOf(item);
-	    }
-	    for (var i = 0, l = array.length; i < l; i++) {
-	        if (array[i] === item) {
-	            return i;
-	        }
-	    }
-	    return -1;
-	}
-	exports.arrayIndexOf = arrayIndexOf;
-	function objectApply(object, f) {
-	    for (var key in object) {
-	        if (Object.prototype.hasOwnProperty.call(object, key)) {
-	            f(object[key], key, object);
-	        }
-	    }
-	}
-	exports.objectApply = objectApply;
-	function keys(object) {
-	    var keys = [];
-	    objectApply(object, function (_, key) {
-	        keys.push(key);
-	    });
-	    return keys;
-	}
-	exports.keys = keys;
-	function values(object) {
-	    var values = [];
-	    objectApply(object, function (value) {
-	        values.push(value);
-	    });
-	    return values;
-	}
-	exports.values = values;
-	function apply(array, f, context) {
-	    for (var i = 0; i < array.length; i++) {
-	        f.call(context || (window), array[i], i, array);
-	    }
-	}
-	exports.apply = apply;
-	function map(array, f) {
-	    var result = [];
-	    for (var i = 0; i < array.length; i++) {
-	        result.push(f(array[i], i, array, result));
-	    }
-	    return result;
-	}
-	exports.map = map;
-	function mapObject(object, f) {
-	    var result = {};
-	    objectApply(object, function (value, key) {
-	        result[key] = f(value);
-	    });
-	    return result;
-	}
-	exports.mapObject = mapObject;
-	function filter(array, test) {
-	    test = test || function (value) { return !!value; };
-	    var result = [];
-	    for (var i = 0; i < array.length; i++) {
-	        if (test(array[i], i, array, result)) {
-	            result.push(array[i]);
-	        }
-	    }
-	    return result;
-	}
-	exports.filter = filter;
-	function filterObject(object, test) {
-	    var result = {};
-	    objectApply(object, function (value, key) {
-	        if ((test && test(value, key, object, result)) || Boolean(value)) {
-	            result[key] = value;
-	        }
-	    });
-	    return result;
-	}
-	exports.filterObject = filterObject;
-	function flatten(object) {
-	    var result = [];
-	    objectApply(object, function (value, key) {
-	        result.push([key, value]);
-	    });
-	    return result;
-	}
-	exports.flatten = flatten;
-	function any(array, test) {
-	    for (var i = 0; i < array.length; i++) {
-	        if (test(array[i], i, array)) {
-	            return true;
-	        }
-	    }
-	    return false;
-	}
-	exports.any = any;
-	function all(array, test) {
-	    for (var i = 0; i < array.length; i++) {
-	        if (!test(array[i], i, array)) {
-	            return false;
-	        }
-	    }
-	    return true;
-	}
-	exports.all = all;
-	function encodeParamsObject(data) {
-	    return mapObject(data, function (value) {
-	        if (typeof value === "object") {
-	            value = safeJSONStringify(value);
-	        }
-	        return encodeURIComponent(base64_1["default"](value.toString()));
-	    });
-	}
-	exports.encodeParamsObject = encodeParamsObject;
-	function buildQueryString(data) {
-	    var params = filterObject(data, function (value) {
-	        return value !== undefined;
-	    });
-	    var query = map(flatten(encodeParamsObject(params)), util_1["default"].method("join", "=")).join("&");
-	    return query;
-	}
-	exports.buildQueryString = buildQueryString;
-	function decycleObject(object) {
-	    var objects = [], paths = [];
-	    return (function derez(value, path) {
-	        var i, name, nu;
-	        switch (typeof value) {
-	            case 'object':
-	                if (!value) {
-	                    return null;
-	                }
-	                for (i = 0; i < objects.length; i += 1) {
-	                    if (objects[i] === value) {
-	                        return { $ref: paths[i] };
-	                    }
-	                }
-	                objects.push(value);
-	                paths.push(path);
-	                if (Object.prototype.toString.apply(value) === '[object Array]') {
-	                    nu = [];
-	                    for (i = 0; i < value.length; i += 1) {
-	                        nu[i] = derez(value[i], path + '[' + i + ']');
-	                    }
-	                }
-	                else {
-	                    nu = {};
-	                    for (name in value) {
-	                        if (Object.prototype.hasOwnProperty.call(value, name)) {
-	                            nu[name] = derez(value[name], path + '[' + JSON.stringify(name) + ']');
-	                        }
-	                    }
-	                }
-	                return nu;
-	            case 'number':
-	            case 'string':
-	            case 'boolean':
-	                return value;
-	        }
-	    }(object, '$'));
-	}
-	exports.decycleObject = decycleObject;
-	function safeJSONStringify(source) {
-	    try {
-	        return JSON.stringify(source);
-	    }
-	    catch (e) {
-	        return JSON.stringify(decycleObject(source));
-	    }
-	}
-	exports.safeJSONStringify = safeJSONStringify;
-
-
-/***/ }),
-/* 10 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	function encode(s) {
-	    return btoa(utob(s));
-	}
-	exports.__esModule = true;
-	exports["default"] = encode;
-	var fromCharCode = String.fromCharCode;
-	var b64chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-	var b64tab = {};
-	for (var i = 0, l = b64chars.length; i < l; i++) {
-	    b64tab[b64chars.charAt(i)] = i;
-	}
-	var cb_utob = function (c) {
-	    var cc = c.charCodeAt(0);
-	    return cc < 0x80 ? c
-	        : cc < 0x800 ? fromCharCode(0xc0 | (cc >>> 6)) +
-	            fromCharCode(0x80 | (cc & 0x3f))
-	            : fromCharCode(0xe0 | ((cc >>> 12) & 0x0f)) +
-	                fromCharCode(0x80 | ((cc >>> 6) & 0x3f)) +
-	                fromCharCode(0x80 | (cc & 0x3f));
-	};
-	var utob = function (u) {
-	    return u.replace(/[^\x00-\x7F]/g, cb_utob);
-	};
-	var cb_encode = function (ccc) {
-	    var padlen = [0, 2, 1][ccc.length % 3];
-	    var ord = ccc.charCodeAt(0) << 16
-	        | ((ccc.length > 1 ? ccc.charCodeAt(1) : 0) << 8)
-	        | ((ccc.length > 2 ? ccc.charCodeAt(2) : 0));
-	    var chars = [
-	        b64chars.charAt(ord >>> 18),
-	        b64chars.charAt((ord >>> 12) & 63),
-	        padlen >= 2 ? '=' : b64chars.charAt((ord >>> 6) & 63),
-	        padlen >= 1 ? '=' : b64chars.charAt(ord & 63)
-	    ];
-	    return chars.join('');
-	};
-	var btoa = (window).btoa || function (b) {
-	    return b.replace(/[\s\S]{1,3}/g, cb_encode);
-	};
-
-
-/***/ }),
-/* 11 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var timers_1 = __webpack_require__(12);
-	var Util = {
-	    now: function () {
-	        if (Date.now) {
-	            return Date.now();
-	        }
-	        else {
-	            return new Date().valueOf();
-	        }
-	    },
-	    defer: function (callback) {
-	        return new timers_1.OneOffTimer(0, callback);
-	    },
-	    method: function (name) {
-	        var args = [];
-	        for (var _i = 1; _i < arguments.length; _i++) {
-	            args[_i - 1] = arguments[_i];
-	        }
-	        var boundArguments = Array.prototype.slice.call(arguments, 1);
-	        return function (object) {
-	            return object[name].apply(object, boundArguments.concat(arguments));
-	        };
-	    }
-	};
-	exports.__esModule = true;
-	exports["default"] = Util;
-
-
-/***/ }),
-/* 12 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var __extends = (this && this.__extends) || function (d, b) {
-	    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
-	    function __() { this.constructor = d; }
-	    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-	};
-	var abstract_timer_1 = __webpack_require__(13);
-	function clearTimeout(timer) {
-	    (window).clearTimeout(timer);
-	}
-	function clearInterval(timer) {
-	    (window).clearInterval(timer);
-	}
-	var OneOffTimer = (function (_super) {
-	    __extends(OneOffTimer, _super);
-	    function OneOffTimer(delay, callback) {
-	        _super.call(this, setTimeout, clearTimeout, delay, function (timer) {
-	            callback();
-	            return null;
-	        });
-	    }
-	    return OneOffTimer;
-	}(abstract_timer_1["default"]));
-	exports.OneOffTimer = OneOffTimer;
-	var PeriodicTimer = (function (_super) {
-	    __extends(PeriodicTimer, _super);
-	    function PeriodicTimer(delay, callback) {
-	        _super.call(this, setInterval, clearInterval, delay, function (timer) {
-	            callback();
-	            return timer;
-	        });
-	    }
-	    return PeriodicTimer;
-	}(abstract_timer_1["default"]));
-	exports.PeriodicTimer = PeriodicTimer;
-
-
-/***/ }),
-/* 13 */
-/***/ (function(module, exports) {
-
-	"use strict";
-	var Timer = (function () {
-	    function Timer(set, clear, delay, callback) {
-	        var _this = this;
-	        this.clear = clear;
-	        this.timer = set(function () {
-	            if (_this.timer) {
-	                _this.timer = callback(_this.timer);
-	            }
-	        }, delay);
-	    }
-	    Timer.prototype.isRunning = function () {
-	        return this.timer !== null;
-	    };
-	    Timer.prototype.ensureAborted = function () {
-	        if (this.timer) {
-	            this.clear(this.timer);
-	            this.timer = null;
-	        }
-	    };
-	    return Timer;
-	}());
-	exports.__esModule = true;
-	exports["default"] = Timer;
-
-
-/***/ }),
-/* 14 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var logger_1 = __webpack_require__(8);
-	var jsonp = function (context, socketId, callback) {
-	    if (this.authOptions.headers !== undefined) {
-	        logger_1["default"].warn("Warn", "To send headers with the auth request, you must use AJAX, rather than JSONP.");
-	    }
-	    var callbackName = context.nextAuthCallbackID.toString();
-	    context.nextAuthCallbackID++;
-	    var document = context.getDocument();
-	    var script = document.createElement("script");
-	    context.auth_callbacks[callbackName] = function (data) {
-	        callback(false, data);
-	    };
-	    var callback_name = "Pusher.auth_callbacks['" + callbackName + "']";
-	    script.src = this.options.authEndpoint +
-	        '?callback=' +
-	        encodeURIComponent(callback_name) +
-	        '&' +
-	        this.composeQuery(socketId);
-	    var head = document.getElementsByTagName("head")[0] || document.documentElement;
-	    head.insertBefore(script, head.firstChild);
-	};
-	exports.__esModule = true;
-	exports["default"] = jsonp;
-
-
-/***/ }),
-/* 15 */
-/***/ (function(module, exports) {
-
-	"use strict";
-	var ScriptRequest = (function () {
-	    function ScriptRequest(src) {
-	        this.src = src;
-	    }
-	    ScriptRequest.prototype.send = function (receiver) {
-	        var self = this;
-	        var errorString = "Error loading " + self.src;
-	        self.script = document.createElement("script");
-	        self.script.id = receiver.id;
-	        self.script.src = self.src;
-	        self.script.type = "text/javascript";
-	        self.script.charset = "UTF-8";
-	        if (self.script.addEventListener) {
-	            self.script.onerror = function () {
-	                receiver.callback(errorString);
-	            };
-	            self.script.onload = function () {
-	                receiver.callback(null);
-	            };
-	        }
-	        else {
-	            self.script.onreadystatechange = function () {
-	                if (self.script.readyState === 'loaded' ||
-	                    self.script.readyState === 'complete') {
-	                    receiver.callback(null);
-	                }
-	            };
-	        }
-	        if (self.script.async === undefined && document.attachEvent &&
-	            /opera/i.test(navigator.userAgent)) {
-	            self.errorScript = document.createElement("script");
-	            self.errorScript.id = receiver.id + "_error";
-	            self.errorScript.text = receiver.name + "('" + errorString + "');";
-	            self.script.async = self.errorScript.async = false;
-	        }
-	        else {
-	            self.script.async = true;
-	        }
-	        var head = document.getElementsByTagName('head')[0];
-	        head.insertBefore(self.script, head.firstChild);
-	        if (self.errorScript) {
-	            head.insertBefore(self.errorScript, self.script.nextSibling);
-	        }
-	    };
-	    ScriptRequest.prototype.cleanup = function () {
-	        if (this.script) {
-	            this.script.onload = this.script.onerror = null;
-	            this.script.onreadystatechange = null;
-	        }
-	        if (this.script && this.script.parentNode) {
-	            this.script.parentNode.removeChild(this.script);
-	        }
-	        if (this.errorScript && this.errorScript.parentNode) {
-	            this.errorScript.parentNode.removeChild(this.errorScript);
-	        }
-	        this.script = null;
-	        this.errorScript = null;
-	    };
-	    return ScriptRequest;
-	}());
-	exports.__esModule = true;
-	exports["default"] = ScriptRequest;
-
-
-/***/ }),
-/* 16 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var Collections = __webpack_require__(9);
-	var runtime_1 = __webpack_require__(2);
-	var JSONPRequest = (function () {
-	    function JSONPRequest(url, data) {
-	        this.url = url;
-	        this.data = data;
-	    }
-	    JSONPRequest.prototype.send = function (receiver) {
-	        if (this.request) {
-	            return;
-	        }
-	        var query = Collections.buildQueryString(this.data);
-	        var url = this.url + "/" + receiver.number + "?" + query;
-	        this.request = runtime_1["default"].createScriptRequest(url);
-	        this.request.send(receiver);
-	    };
-	    JSONPRequest.prototype.cleanup = function () {
-	        if (this.request) {
-	            this.request.cleanup();
-	        }
-	    };
-	    return JSONPRequest;
-	}());
-	exports.__esModule = true;
-	exports["default"] = JSONPRequest;
-
-
-/***/ }),
-/* 17 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var runtime_1 = __webpack_require__(2);
-	var script_receiver_factory_1 = __webpack_require__(4);
-	var getAgent = function (sender, encrypted) {
-	    return function (data, callback) {
-	        var scheme = "http" + (encrypted ? "s" : "") + "://";
-	        var url = scheme + (sender.host || sender.options.host) + sender.options.path;
-	        var request = runtime_1["default"].createJSONPRequest(url, data);
-	        var receiver = runtime_1["default"].ScriptReceivers.create(function (error, result) {
-	            script_receiver_factory_1.ScriptReceivers.remove(receiver);
-	            request.cleanup();
-	            if (result && result.host) {
-	                sender.host = result.host;
-	            }
-	            if (callback) {
-	                callback(error, result);
-	            }
-	        });
-	        request.send(receiver);
-	    };
-	};
-	var jsonp = {
-	    name: 'jsonp',
-	    getAgent: getAgent
-	};
-	exports.__esModule = true;
-	exports["default"] = jsonp;
-
-
-/***/ }),
-/* 18 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var transports_1 = __webpack_require__(19);
-	var transport_1 = __webpack_require__(21);
-	var URLSchemes = __webpack_require__(20);
-	var runtime_1 = __webpack_require__(2);
-	var dependencies_1 = __webpack_require__(3);
-	var Collections = __webpack_require__(9);
-	var SockJSTransport = new transport_1["default"]({
-	    file: "sockjs",
-	    urls: URLSchemes.sockjs,
-	    handlesActivityChecks: true,
-	    supportsPing: false,
-	    isSupported: function () {
-	        return true;
-	    },
-	    isInitialized: function () {
-	        return window.SockJS !== undefined;
-	    },
-	    getSocket: function (url, options) {
-	        return new window.SockJS(url, null, {
-	            js_path: dependencies_1.Dependencies.getPath("sockjs", {
-	                encrypted: options.encrypted
-	            }),
-	            ignore_null_origin: options.ignoreNullOrigin
-	        });
-	    },
-	    beforeOpen: function (socket, path) {
-	        socket.send(JSON.stringify({
-	            path: path
-	        }));
-	    }
-	});
-	var xdrConfiguration = {
-	    isSupported: function (environment) {
-	        var yes = runtime_1["default"].isXDRSupported(environment.encrypted);
-	        return yes;
-	    }
-	};
-	var XDRStreamingTransport = new transport_1["default"](Collections.extend({}, transports_1.streamingConfiguration, xdrConfiguration));
-	var XDRPollingTransport = new transport_1["default"](Collections.extend({}, transports_1.pollingConfiguration, xdrConfiguration));
-	transports_1["default"].xdr_streaming = XDRStreamingTransport;
-	transports_1["default"].xdr_polling = XDRPollingTransport;
-	transports_1["default"].sockjs = SockJSTransport;
-	exports.__esModule = true;
-	exports["default"] = transports_1["default"];
-
-
-/***/ }),
-/* 19 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var URLSchemes = __webpack_require__(20);
-	var transport_1 = __webpack_require__(21);
-	var Collections = __webpack_require__(9);
-	var runtime_1 = __webpack_require__(2);
-	var WSTransport = new transport_1["default"]({
-	    urls: URLSchemes.ws,
-	    handlesActivityChecks: false,
-	    supportsPing: false,
-	    isInitialized: function () {
-	        return Boolean(runtime_1["default"].getWebSocketAPI());
-	    },
-	    isSupported: function () {
-	        return Boolean(runtime_1["default"].getWebSocketAPI());
-	    },
-	    getSocket: function (url) {
-	        return runtime_1["default"].createWebSocket(url);
-	    }
-	});
-	var httpConfiguration = {
-	    urls: URLSchemes.http,
-	    handlesActivityChecks: false,
-	    supportsPing: true,
-	    isInitialized: function () {
-	        return true;
-	    }
-	};
-	exports.streamingConfiguration = Collections.extend({ getSocket: function (url) {
-	        return runtime_1["default"].HTTPFactory.createStreamingSocket(url);
-	    }
-	}, httpConfiguration);
-	exports.pollingConfiguration = Collections.extend({ getSocket: function (url) {
-	        return runtime_1["default"].HTTPFactory.createPollingSocket(url);
-	    }
-	}, httpConfiguration);
-	var xhrConfiguration = {
-	    isSupported: function () {
-	        return runtime_1["default"].isXHRSupported();
-	    }
-	};
-	var XHRStreamingTransport = new transport_1["default"](Collections.extend({}, exports.streamingConfiguration, xhrConfiguration));
-	var XHRPollingTransport = new transport_1["default"](Collections.extend({}, exports.pollingConfiguration, xhrConfiguration));
-	var Transports = {
-	    ws: WSTransport,
-	    xhr_streaming: XHRStreamingTransport,
-	    xhr_polling: XHRPollingTransport
-	};
-	exports.__esModule = true;
-	exports["default"] = Transports;
-
-
-/***/ }),
-/* 20 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var defaults_1 = __webpack_require__(5);
-	function getGenericURL(baseScheme, params, path) {
-	    var scheme = baseScheme + (params.encrypted ? "s" : "");
-	    var host = params.encrypted ? params.hostEncrypted : params.hostUnencrypted;
-	    return scheme + "://" + host + path;
-	}
-	function getGenericPath(key, queryString) {
-	    var path = "/app/" + key;
-	    var query = "?protocol=" + defaults_1["default"].PROTOCOL +
-	        "&client=js" +
-	        "&version=" + defaults_1["default"].VERSION +
-	        (queryString ? ("&" + queryString) : "");
-	    return path + query;
-	}
-	exports.ws = {
-	    getInitial: function (key, params) {
-	        return getGenericURL("ws", params, getGenericPath(key, "flash=false"));
-	    }
-	};
-	exports.http = {
-	    getInitial: function (key, params) {
-	        var path = (params.httpPath || "/pusher") + getGenericPath(key);
-	        return getGenericURL("http", params, path);
-	    }
-	};
-	exports.sockjs = {
-	    getInitial: function (key, params) {
-	        return getGenericURL("http", params, params.httpPath || "/pusher");
-	    },
-	    getPath: function (key, params) {
-	        return getGenericPath(key);
-	    }
-	};
-
-
-/***/ }),
-/* 21 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var transport_connection_1 = __webpack_require__(22);
-	var Transport = (function () {
-	    function Transport(hooks) {
-	        this.hooks = hooks;
-	    }
-	    Transport.prototype.isSupported = function (environment) {
-	        return this.hooks.isSupported(environment);
-	    };
-	    Transport.prototype.createConnection = function (name, priority, key, options) {
-	        return new transport_connection_1["default"](this.hooks, name, priority, key, options);
-	    };
-	    return Transport;
-	}());
-	exports.__esModule = true;
-	exports["default"] = Transport;
-
-
-/***/ }),
-/* 22 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var __extends = (this && this.__extends) || function (d, b) {
-	    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
-	    function __() { this.constructor = d; }
-	    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-	};
-	var util_1 = __webpack_require__(11);
-	var Collections = __webpack_require__(9);
-	var dispatcher_1 = __webpack_require__(23);
-	var logger_1 = __webpack_require__(8);
-	var runtime_1 = __webpack_require__(2);
-	var TransportConnection = (function (_super) {
-	    __extends(TransportConnection, _super);
-	    function TransportConnection(hooks, name, priority, key, options) {
-	        _super.call(this);
-	        this.initialize = runtime_1["default"].transportConnectionInitializer;
-	        this.hooks = hooks;
-	        this.name = name;
-	        this.priority = priority;
-	        this.key = key;
-	        this.options = options;
-	        this.state = "new";
-	        this.timeline = options.timeline;
-	        this.activityTimeout = options.activityTimeout;
-	        this.id = this.timeline.generateUniqueID();
-	    }
-	    TransportConnection.prototype.handlesActivityChecks = function () {
-	        return Boolean(this.hooks.handlesActivityChecks);
-	    };
-	    TransportConnection.prototype.supportsPing = function () {
-	        return Boolean(this.hooks.supportsPing);
-	    };
-	    TransportConnection.prototype.connect = function () {
-	        var _this = this;
-	        if (this.socket || this.state !== "initialized") {
-	            return false;
-	        }
-	        var url = this.hooks.urls.getInitial(this.key, this.options);
-	        try {
-	            this.socket = this.hooks.getSocket(url, this.options);
-	        }
-	        catch (e) {
-	            util_1["default"].defer(function () {
-	                _this.onError(e);
-	                _this.changeState("closed");
-	            });
-	            return false;
-	        }
-	        this.bindListeners();
-	        logger_1["default"].debug("Connecting", { transport: this.name, url: url });
-	        this.changeState("connecting");
-	        return true;
-	    };
-	    TransportConnection.prototype.close = function () {
-	        if (this.socket) {
-	            this.socket.close();
-	            return true;
-	        }
-	        else {
-	            return false;
-	        }
-	    };
-	    TransportConnection.prototype.send = function (data) {
-	        var _this = this;
-	        if (this.state === "open") {
-	            util_1["default"].defer(function () {
-	                if (_this.socket) {
-	                    _this.socket.send(data);
-	                }
-	            });
-	            return true;
-	        }
-	        else {
-	            return false;
-	        }
-	    };
-	    TransportConnection.prototype.ping = function () {
-	        if (this.state === "open" && this.supportsPing()) {
-	            this.socket.ping();
-	        }
-	    };
-	    TransportConnection.prototype.onOpen = function () {
-	        if (this.hooks.beforeOpen) {
-	            this.hooks.beforeOpen(this.socket, this.hooks.urls.getPath(this.key, this.options));
-	        }
-	        this.changeState("open");
-	        this.socket.onopen = undefined;
-	    };
-	    TransportConnection.prototype.onError = function (error) {
-	        this.emit("error", { type: 'WebSocketError', error: error });
-	        this.timeline.error(this.buildTimelineMessage({ error: error.toString() }));
-	    };
-	    TransportConnection.prototype.onClose = function (closeEvent) {
-	        if (closeEvent) {
-	            this.changeState("closed", {
-	                code: closeEvent.code,
-	                reason: closeEvent.reason,
-	                wasClean: closeEvent.wasClean
-	            });
-	        }
-	        else {
-	            this.changeState("closed");
-	        }
-	        this.unbindListeners();
-	        this.socket = undefined;
-	    };
-	    TransportConnection.prototype.onMessage = function (message) {
-	        this.emit("message", message);
-	    };
-	    TransportConnection.prototype.onActivity = function () {
-	        this.emit("activity");
-	    };
-	    TransportConnection.prototype.bindListeners = function () {
-	        var _this = this;
-	        this.socket.onopen = function () {
-	            _this.onOpen();
-	        };
-	        this.socket.onerror = function (error) {
-	            _this.onError(error);
-	        };
-	        this.socket.onclose = function (closeEvent) {
-	            _this.onClose(closeEvent);
-	        };
-	        this.socket.onmessage = function (message) {
-	            _this.onMessage(message);
-	        };
-	        if (this.supportsPing()) {
-	            this.socket.onactivity = function () { _this.onActivity(); };
-	        }
-	    };
-	    TransportConnection.prototype.unbindListeners = function () {
-	        if (this.socket) {
-	            this.socket.onopen = undefined;
-	            this.socket.onerror = undefined;
-	            this.socket.onclose = undefined;
-	            this.socket.onmessage = undefined;
-	            if (this.supportsPing()) {
-	                this.socket.onactivity = undefined;
-	            }
-	        }
-	    };
-	    TransportConnection.prototype.changeState = function (state, params) {
-	        this.state = state;
-	        this.timeline.info(this.buildTimelineMessage({
-	            state: state,
-	            params: params
-	        }));
-	        this.emit(state, params);
-	    };
-	    TransportConnection.prototype.buildTimelineMessage = function (message) {
-	        return Collections.extend({ cid: this.id }, message);
-	    };
-	    return TransportConnection;
-	}(dispatcher_1["default"]));
-	exports.__esModule = true;
-	exports["default"] = TransportConnection;
-
-
-/***/ }),
-/* 23 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var Collections = __webpack_require__(9);
-	var callback_registry_1 = __webpack_require__(24);
-	var Dispatcher = (function () {
-	    function Dispatcher(failThrough) {
-	        this.callbacks = new callback_registry_1["default"]();
-	        this.global_callbacks = [];
-	        this.failThrough = failThrough;
-	    }
-	    Dispatcher.prototype.bind = function (eventName, callback, context) {
-	        this.callbacks.add(eventName, callback, context);
-	        return this;
-	    };
-	    Dispatcher.prototype.bind_global = function (callback) {
-	        this.global_callbacks.push(callback);
-	        return this;
-	    };
-	    Dispatcher.prototype.unbind = function (eventName, callback, context) {
-	        this.callbacks.remove(eventName, callback, context);
-	        return this;
-	    };
-	    Dispatcher.prototype.unbind_global = function (callback) {
-	        if (!callback) {
-	            this.global_callbacks = [];
-	            return this;
-	        }
-	        this.global_callbacks = Collections.filter(this.global_callbacks || [], function (c) { return c !== callback; });
-	        return this;
-	    };
-	    Dispatcher.prototype.unbind_all = function () {
-	        this.unbind();
-	        this.unbind_global();
-	        return this;
-	    };
-	    Dispatcher.prototype.emit = function (eventName, data) {
-	        var i;
-	        for (i = 0; i < this.global_callbacks.length; i++) {
-	            this.global_callbacks[i](eventName, data);
-	        }
-	        var callbacks = this.callbacks.get(eventName);
-	        if (callbacks && callbacks.length > 0) {
-	            for (i = 0; i < callbacks.length; i++) {
-	                callbacks[i].fn.call(callbacks[i].context || (window), data);
-	            }
-	        }
-	        else if (this.failThrough) {
-	            this.failThrough(eventName, data);
-	        }
-	        return this;
-	    };
-	    return Dispatcher;
-	}());
-	exports.__esModule = true;
-	exports["default"] = Dispatcher;
-
-
-/***/ }),
-/* 24 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var Collections = __webpack_require__(9);
-	var CallbackRegistry = (function () {
-	    function CallbackRegistry() {
-	        this._callbacks = {};
-	    }
-	    CallbackRegistry.prototype.get = function (name) {
-	        return this._callbacks[prefix(name)];
-	    };
-	    CallbackRegistry.prototype.add = function (name, callback, context) {
-	        var prefixedEventName = prefix(name);
-	        this._callbacks[prefixedEventName] = this._callbacks[prefixedEventName] || [];
-	        this._callbacks[prefixedEventName].push({
-	            fn: callback,
-	            context: context
-	        });
-	    };
-	    CallbackRegistry.prototype.remove = function (name, callback, context) {
-	        if (!name && !callback && !context) {
-	            this._callbacks = {};
-	            return;
-	        }
-	        var names = name ? [prefix(name)] : Collections.keys(this._callbacks);
-	        if (callback || context) {
-	            this.removeCallback(names, callback, context);
-	        }
-	        else {
-	            this.removeAllCallbacks(names);
-	        }
-	    };
-	    CallbackRegistry.prototype.removeCallback = function (names, callback, context) {
-	        Collections.apply(names, function (name) {
-	            this._callbacks[name] = Collections.filter(this._callbacks[name] || [], function (binding) {
-	                return (callback && callback !== binding.fn) ||
-	                    (context && context !== binding.context);
-	            });
-	            if (this._callbacks[name].length === 0) {
-	                delete this._callbacks[name];
-	            }
-	        }, this);
-	    };
-	    CallbackRegistry.prototype.removeAllCallbacks = function (names) {
-	        Collections.apply(names, function (name) {
-	            delete this._callbacks[name];
-	        }, this);
-	    };
-	    return CallbackRegistry;
-	}());
-	exports.__esModule = true;
-	exports["default"] = CallbackRegistry;
-	function prefix(name) {
-	    return "_" + name;
-	}
-
-
-/***/ }),
-/* 25 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var __extends = (this && this.__extends) || function (d, b) {
-	    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
-	    function __() { this.constructor = d; }
-	    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-	};
-	var dispatcher_1 = __webpack_require__(23);
-	var NetInfo = (function (_super) {
-	    __extends(NetInfo, _super);
-	    function NetInfo() {
-	        _super.call(this);
-	        var self = this;
-	        if (window.addEventListener !== undefined) {
-	            window.addEventListener("online", function () {
-	                self.emit('online');
-	            }, false);
-	            window.addEventListener("offline", function () {
-	                self.emit('offline');
-	            }, false);
-	        }
-	    }
-	    NetInfo.prototype.isOnline = function () {
-	        if (window.navigator.onLine === undefined) {
-	            return true;
-	        }
-	        else {
-	            return window.navigator.onLine;
-	        }
-	    };
-	    return NetInfo;
-	}(dispatcher_1["default"]));
-	exports.NetInfo = NetInfo;
-	exports.Network = new NetInfo();
-
-
-/***/ }),
-/* 26 */
-/***/ (function(module, exports) {
-
-	"use strict";
-	var getDefaultStrategy = function (config) {
-	    var wsStrategy;
-	    if (config.encrypted) {
-	        wsStrategy = [
-	            ":best_connected_ever",
-	            ":ws_loop",
-	            [":delayed", 2000, [":http_fallback_loop"]]
-	        ];
-	    }
-	    else {
-	        wsStrategy = [
-	            ":best_connected_ever",
-	            ":ws_loop",
-	            [":delayed", 2000, [":wss_loop"]],
-	            [":delayed", 5000, [":http_fallback_loop"]]
-	        ];
-	    }
-	    return [
-	        [":def", "ws_options", {
-	                hostUnencrypted: config.wsHost + ":" + config.wsPort,
-	                hostEncrypted: config.wsHost + ":" + config.wssPort
-	            }],
-	        [":def", "wss_options", [":extend", ":ws_options", {
-	                    encrypted: true
-	                }]],
-	        [":def", "sockjs_options", {
-	                hostUnencrypted: config.httpHost + ":" + config.httpPort,
-	                hostEncrypted: config.httpHost + ":" + config.httpsPort,
-	                httpPath: config.httpPath
-	            }],
-	        [":def", "timeouts", {
-	                loop: true,
-	                timeout: 15000,
-	                timeoutLimit: 60000
-	            }],
-	        [":def", "ws_manager", [":transport_manager", {
-	                    lives: 2,
-	                    minPingDelay: 10000,
-	                    maxPingDelay: config.activity_timeout
-	                }]],
-	        [":def", "streaming_manager", [":transport_manager", {
-	                    lives: 2,
-	                    minPingDelay: 10000,
-	                    maxPingDelay: config.activity_timeout
-	                }]],
-	        [":def_transport", "ws", "ws", 3, ":ws_options", ":ws_manager"],
-	        [":def_transport", "wss", "ws", 3, ":wss_options", ":ws_manager"],
-	        [":def_transport", "sockjs", "sockjs", 1, ":sockjs_options"],
-	        [":def_transport", "xhr_streaming", "xhr_streaming", 1, ":sockjs_options", ":streaming_manager"],
-	        [":def_transport", "xdr_streaming", "xdr_streaming", 1, ":sockjs_options", ":streaming_manager"],
-	        [":def_transport", "xhr_polling", "xhr_polling", 1, ":sockjs_options"],
-	        [":def_transport", "xdr_polling", "xdr_polling", 1, ":sockjs_options"],
-	        [":def", "ws_loop", [":sequential", ":timeouts", ":ws"]],
-	        [":def", "wss_loop", [":sequential", ":timeouts", ":wss"]],
-	        [":def", "sockjs_loop", [":sequential", ":timeouts", ":sockjs"]],
-	        [":def", "streaming_loop", [":sequential", ":timeouts",
-	                [":if", [":is_supported", ":xhr_streaming"],
-	                    ":xhr_streaming",
-	                    ":xdr_streaming"
-	                ]
-	            ]],
-	        [":def", "polling_loop", [":sequential", ":timeouts",
-	                [":if", [":is_supported", ":xhr_polling"],
-	                    ":xhr_polling",
-	                    ":xdr_polling"
-	                ]
-	            ]],
-	        [":def", "http_loop", [":if", [":is_supported", ":streaming_loop"], [
-	                    ":best_connected_ever",
-	                    ":streaming_loop",
-	                    [":delayed", 4000, [":polling_loop"]]
-	                ], [
-	                    ":polling_loop"
-	                ]]],
-	        [":def", "http_fallback_loop",
-	            [":if", [":is_supported", ":http_loop"], [
-	                    ":http_loop"
-	                ], [
-	                    ":sockjs_loop"
-	                ]]
-	        ],
-	        [":def", "strategy",
-	            [":cached", 1800000,
-	                [":first_connected",
-	                    [":if", [":is_supported", ":ws"],
-	                        wsStrategy,
-	                        ":http_fallback_loop"
-	                    ]
-	                ]
-	            ]
-	        ]
-	    ];
-	};
-	exports.__esModule = true;
-	exports["default"] = getDefaultStrategy;
-
-
-/***/ }),
-/* 27 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var dependencies_1 = __webpack_require__(3);
-	function default_1() {
-	    var self = this;
-	    self.timeline.info(self.buildTimelineMessage({
-	        transport: self.name + (self.options.encrypted ? "s" : "")
-	    }));
-	    if (self.hooks.isInitialized()) {
-	        self.changeState("initialized");
-	    }
-	    else if (self.hooks.file) {
-	        self.changeState("initializing");
-	        dependencies_1.Dependencies.load(self.hooks.file, { encrypted: self.options.encrypted }, function (error, callback) {
-	            if (self.hooks.isInitialized()) {
-	                self.changeState("initialized");
-	                callback(true);
-	            }
-	            else {
-	                if (error) {
-	                    self.onError(error);
-	                }
-	                self.onClose();
-	                callback(false);
-	            }
-	        });
-	    }
-	    else {
-	        self.onClose();
-	    }
-	}
-	exports.__esModule = true;
-	exports["default"] = default_1;
-
-
-/***/ }),
-/* 28 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var http_xdomain_request_1 = __webpack_require__(29);
-	var http_1 = __webpack_require__(31);
-	http_1["default"].createXDR = function (method, url) {
-	    return this.createRequest(http_xdomain_request_1["default"], method, url);
-	};
-	exports.__esModule = true;
-	exports["default"] = http_1["default"];
-
-
-/***/ }),
-/* 29 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var Errors = __webpack_require__(30);
-	var hooks = {
-	    getRequest: function (socket) {
-	        var xdr = new window.XDomainRequest();
-	        xdr.ontimeout = function () {
-	            socket.emit("error", new Errors.RequestTimedOut());
-	            socket.close();
-	        };
-	        xdr.onerror = function (e) {
-	            socket.emit("error", e);
-	            socket.close();
-	        };
-	        xdr.onprogress = function () {
-	            if (xdr.responseText && xdr.responseText.length > 0) {
-	                socket.onChunk(200, xdr.responseText);
-	            }
-	        };
-	        xdr.onload = function () {
-	            if (xdr.responseText && xdr.responseText.length > 0) {
-	                socket.onChunk(200, xdr.responseText);
-	            }
-	            socket.emit("finished", 200);
-	            socket.close();
-	        };
-	        return xdr;
-	    },
-	    abortRequest: function (xdr) {
-	        xdr.ontimeout = xdr.onerror = xdr.onprogress = xdr.onload = null;
-	        xdr.abort();
-	    }
-	};
-	exports.__esModule = true;
-	exports["default"] = hooks;
-
-
-/***/ }),
-/* 30 */
-/***/ (function(module, exports) {
-
-	"use strict";
-	var __extends = (this && this.__extends) || function (d, b) {
-	    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
-	    function __() { this.constructor = d; }
-	    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-	};
-	var BadEventName = (function (_super) {
-	    __extends(BadEventName, _super);
-	    function BadEventName() {
-	        _super.apply(this, arguments);
-	    }
-	    return BadEventName;
-	}(Error));
-	exports.BadEventName = BadEventName;
-	var RequestTimedOut = (function (_super) {
-	    __extends(RequestTimedOut, _super);
-	    function RequestTimedOut() {
-	        _super.apply(this, arguments);
-	    }
-	    return RequestTimedOut;
-	}(Error));
-	exports.RequestTimedOut = RequestTimedOut;
-	var TransportPriorityTooLow = (function (_super) {
-	    __extends(TransportPriorityTooLow, _super);
-	    function TransportPriorityTooLow() {
-	        _super.apply(this, arguments);
-	    }
-	    return TransportPriorityTooLow;
-	}(Error));
-	exports.TransportPriorityTooLow = TransportPriorityTooLow;
-	var TransportClosed = (function (_super) {
-	    __extends(TransportClosed, _super);
-	    function TransportClosed() {
-	        _super.apply(this, arguments);
-	    }
-	    return TransportClosed;
-	}(Error));
-	exports.TransportClosed = TransportClosed;
-	var UnsupportedTransport = (function (_super) {
-	    __extends(UnsupportedTransport, _super);
-	    function UnsupportedTransport() {
-	        _super.apply(this, arguments);
-	    }
-	    return UnsupportedTransport;
-	}(Error));
-	exports.UnsupportedTransport = UnsupportedTransport;
-	var UnsupportedStrategy = (function (_super) {
-	    __extends(UnsupportedStrategy, _super);
-	    function UnsupportedStrategy() {
-	        _super.apply(this, arguments);
-	    }
-	    return UnsupportedStrategy;
-	}(Error));
-	exports.UnsupportedStrategy = UnsupportedStrategy;
-
-
-/***/ }),
-/* 31 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var http_request_1 = __webpack_require__(32);
-	var http_socket_1 = __webpack_require__(33);
-	var http_streaming_socket_1 = __webpack_require__(35);
-	var http_polling_socket_1 = __webpack_require__(36);
-	var http_xhr_request_1 = __webpack_require__(37);
-	var HTTP = {
-	    createStreamingSocket: function (url) {
-	        return this.createSocket(http_streaming_socket_1["default"], url);
-	    },
-	    createPollingSocket: function (url) {
-	        return this.createSocket(http_polling_socket_1["default"], url);
-	    },
-	    createSocket: function (hooks, url) {
-	        return new http_socket_1["default"](hooks, url);
-	    },
-	    createXHR: function (method, url) {
-	        return this.createRequest(http_xhr_request_1["default"], method, url);
-	    },
-	    createRequest: function (hooks, method, url) {
-	        return new http_request_1["default"](hooks, method, url);
-	    }
-	};
-	exports.__esModule = true;
-	exports["default"] = HTTP;
-
-
-/***/ }),
-/* 32 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var __extends = (this && this.__extends) || function (d, b) {
-	    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
-	    function __() { this.constructor = d; }
-	    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-	};
-	var runtime_1 = __webpack_require__(2);
-	var dispatcher_1 = __webpack_require__(23);
-	var MAX_BUFFER_LENGTH = 256 * 1024;
-	var HTTPRequest = (function (_super) {
-	    __extends(HTTPRequest, _super);
-	    function HTTPRequest(hooks, method, url) {
-	        _super.call(this);
-	        this.hooks = hooks;
-	        this.method = method;
-	        this.url = url;
-	    }
-	    HTTPRequest.prototype.start = function (payload) {
-	        var _this = this;
-	        this.position = 0;
-	        this.xhr = this.hooks.getRequest(this);
-	        this.unloader = function () {
-	            _this.close();
-	        };
-	        runtime_1["default"].addUnloadListener(this.unloader);
-	        this.xhr.open(this.method, this.url, true);
-	        if (this.xhr.setRequestHeader) {
-	            this.xhr.setRequestHeader("Content-Type", "application/json");
-	        }
-	        this.xhr.send(payload);
-	    };
-	    HTTPRequest.prototype.close = function () {
-	        if (this.unloader) {
-	            runtime_1["default"].removeUnloadListener(this.unloader);
-	            this.unloader = null;
-	        }
-	        if (this.xhr) {
-	            this.hooks.abortRequest(this.xhr);
-	            this.xhr = null;
-	        }
-	    };
-	    HTTPRequest.prototype.onChunk = function (status, data) {
-	        while (true) {
-	            var chunk = this.advanceBuffer(data);
-	            if (chunk) {
-	                this.emit("chunk", { status: status, data: chunk });
-	            }
-	            else {
-	                break;
-	            }
-	        }
-	        if (this.isBufferTooLong(data)) {
-	            this.emit("buffer_too_long");
-	        }
-	    };
-	    HTTPRequest.prototype.advanceBuffer = function (buffer) {
-	        var unreadData = buffer.slice(this.position);
-	        var endOfLinePosition = unreadData.indexOf("\n");
-	        if (endOfLinePosition !== -1) {
-	            this.position += endOfLinePosition + 1;
-	            return unreadData.slice(0, endOfLinePosition);
-	        }
-	        else {
-	            return null;
-	        }
-	    };
-	    HTTPRequest.prototype.isBufferTooLong = function (buffer) {
-	        return this.position === buffer.length && buffer.length > MAX_BUFFER_LENGTH;
-	    };
-	    return HTTPRequest;
-	}(dispatcher_1["default"]));
-	exports.__esModule = true;
-	exports["default"] = HTTPRequest;
-
-
-/***/ }),
-/* 33 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var state_1 = __webpack_require__(34);
-	var util_1 = __webpack_require__(11);
-	var runtime_1 = __webpack_require__(2);
-	var autoIncrement = 1;
-	var HTTPSocket = (function () {
-	    function HTTPSocket(hooks, url) {
-	        this.hooks = hooks;
-	        this.session = randomNumber(1000) + "/" + randomString(8);
-	        this.location = getLocation(url);
-	        this.readyState = state_1["default"].CONNECTING;
-	        this.openStream();
-	    }
-	    HTTPSocket.prototype.send = function (payload) {
-	        return this.sendRaw(JSON.stringify([payload]));
-	    };
-	    HTTPSocket.prototype.ping = function () {
-	        this.hooks.sendHeartbeat(this);
-	    };
-	    HTTPSocket.prototype.close = function (code, reason) {
-	        this.onClose(code, reason, true);
-	    };
-	    HTTPSocket.prototype.sendRaw = function (payload) {
-	        if (this.readyState === state_1["default"].OPEN) {
-	            try {
-	                runtime_1["default"].createSocketRequest("POST", getUniqueURL(getSendURL(this.location, this.session))).start(payload);
-	                return true;
-	            }
-	            catch (e) {
-	                return false;
-	            }
-	        }
-	        else {
-	            return false;
-	        }
-	    };
-	    HTTPSocket.prototype.reconnect = function () {
-	        this.closeStream();
-	        this.openStream();
-	    };
-	    ;
-	    HTTPSocket.prototype.onClose = function (code, reason, wasClean) {
-	        this.closeStream();
-	        this.readyState = state_1["default"].CLOSED;
-	        if (this.onclose) {
-	            this.onclose({
-	                code: code,
-	                reason: reason,
-	                wasClean: wasClean
-	            });
-	        }
-	    };
-	    HTTPSocket.prototype.onChunk = function (chunk) {
-	        if (chunk.status !== 200) {
-	            return;
-	        }
-	        if (this.readyState === state_1["default"].OPEN) {
-	            this.onActivity();
-	        }
-	        var payload;
-	        var type = chunk.data.slice(0, 1);
-	        switch (type) {
-	            case 'o':
-	                payload = JSON.parse(chunk.data.slice(1) || '{}');
-	                this.onOpen(payload);
-	                break;
-	            case 'a':
-	                payload = JSON.parse(chunk.data.slice(1) || '[]');
-	                for (var i = 0; i < payload.length; i++) {
-	                    this.onEvent(payload[i]);
-	                }
-	                break;
-	            case 'm':
-	                payload = JSON.parse(chunk.data.slice(1) || 'null');
-	                this.onEvent(payload);
-	                break;
-	            case 'h':
-	                this.hooks.onHeartbeat(this);
-	                break;
-	            case 'c':
-	                payload = JSON.parse(chunk.data.slice(1) || '[]');
-	                this.onClose(payload[0], payload[1], true);
-	                break;
-	        }
-	    };
-	    HTTPSocket.prototype.onOpen = function (options) {
-	        if (this.readyState === state_1["default"].CONNECTING) {
-	            if (options && options.hostname) {
-	                this.location.base = replaceHost(this.location.base, options.hostname);
-	            }
-	            this.readyState = state_1["default"].OPEN;
-	            if (this.onopen) {
-	                this.onopen();
-	            }
-	        }
-	        else {
-	            this.onClose(1006, "Server lost session", true);
-	        }
-	    };
-	    HTTPSocket.prototype.onEvent = function (event) {
-	        if (this.readyState === state_1["default"].OPEN && this.onmessage) {
-	            this.onmessage({ data: event });
-	        }
-	    };
-	    HTTPSocket.prototype.onActivity = function () {
-	        if (this.onactivity) {
-	            this.onactivity();
-	        }
-	    };
-	    HTTPSocket.prototype.onError = function (error) {
-	        if (this.onerror) {
-	            this.onerror(error);
-	        }
-	    };
-	    HTTPSocket.prototype.openStream = function () {
-	        var _this = this;
-	        this.stream = runtime_1["default"].createSocketRequest("POST", getUniqueURL(this.hooks.getReceiveURL(this.location, this.session)));
-	        this.stream.bind("chunk", function (chunk) {
-	            _this.onChunk(chunk);
-	        });
-	        this.stream.bind("finished", function (status) {
-	            _this.hooks.onFinished(_this, status);
-	        });
-	        this.stream.bind("buffer_too_long", function () {
-	            _this.reconnect();
-	        });
-	        try {
-	            this.stream.start();
-	        }
-	        catch (error) {
-	            util_1["default"].defer(function () {
-	                _this.onError(error);
-	                _this.onClose(1006, "Could not start streaming", false);
-	            });
-	        }
-	    };
-	    HTTPSocket.prototype.closeStream = function () {
-	        if (this.stream) {
-	            this.stream.unbind_all();
-	            this.stream.close();
-	            this.stream = null;
-	        }
-	    };
-	    return HTTPSocket;
-	}());
-	function getLocation(url) {
-	    var parts = /([^\?]*)\/*(\??.*)/.exec(url);
-	    return {
-	        base: parts[1],
-	        queryString: parts[2]
-	    };
-	}
-	function getSendURL(url, session) {
-	    return url.base + "/" + session + "/xhr_send";
-	}
-	function getUniqueURL(url) {
-	    var separator = (url.indexOf('?') === -1) ? "?" : "&";
-	    return url + separator + "t=" + (+new Date()) + "&n=" + autoIncrement++;
-	}
-	function replaceHost(url, hostname) {
-	    var urlParts = /(https?:\/\/)([^\/:]+)((\/|:)?.*)/.exec(url);
-	    return urlParts[1] + hostname + urlParts[3];
-	}
-	function randomNumber(max) {
-	    return Math.floor(Math.random() * max);
-	}
-	function randomString(length) {
-	    var result = [];
-	    for (var i = 0; i < length; i++) {
-	        result.push(randomNumber(32).toString(32));
-	    }
-	    return result.join('');
-	}
-	exports.__esModule = true;
-	exports["default"] = HTTPSocket;
-
-
-/***/ }),
-/* 34 */
-/***/ (function(module, exports) {
-
-	"use strict";
-	var State;
-	(function (State) {
-	    State[State["CONNECTING"] = 0] = "CONNECTING";
-	    State[State["OPEN"] = 1] = "OPEN";
-	    State[State["CLOSED"] = 3] = "CLOSED";
-	})(State || (State = {}));
-	exports.__esModule = true;
-	exports["default"] = State;
-
-
-/***/ }),
-/* 35 */
-/***/ (function(module, exports) {
-
-	"use strict";
-	var hooks = {
-	    getReceiveURL: function (url, session) {
-	        return url.base + "/" + session + "/xhr_streaming" + url.queryString;
-	    },
-	    onHeartbeat: function (socket) {
-	        socket.sendRaw("[]");
-	    },
-	    sendHeartbeat: function (socket) {
-	        socket.sendRaw("[]");
-	    },
-	    onFinished: function (socket, status) {
-	        socket.onClose(1006, "Connection interrupted (" + status + ")", false);
-	    }
-	};
-	exports.__esModule = true;
-	exports["default"] = hooks;
-
-
-/***/ }),
-/* 36 */
-/***/ (function(module, exports) {
-
-	"use strict";
-	var hooks = {
-	    getReceiveURL: function (url, session) {
-	        return url.base + "/" + session + "/xhr" + url.queryString;
-	    },
-	    onHeartbeat: function () {
-	    },
-	    sendHeartbeat: function (socket) {
-	        socket.sendRaw("[]");
-	    },
-	    onFinished: function (socket, status) {
-	        if (status === 200) {
-	            socket.reconnect();
-	        }
-	        else {
-	            socket.onClose(1006, "Connection interrupted (" + status + ")", false);
-	        }
-	    }
-	};
-	exports.__esModule = true;
-	exports["default"] = hooks;
-
-
-/***/ }),
-/* 37 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var runtime_1 = __webpack_require__(2);
-	var hooks = {
-	    getRequest: function (socket) {
-	        var Constructor = runtime_1["default"].getXHRAPI();
-	        var xhr = new Constructor();
-	        xhr.onreadystatechange = xhr.onprogress = function () {
-	            switch (xhr.readyState) {
-	                case 3:
-	                    if (xhr.responseText && xhr.responseText.length > 0) {
-	                        socket.onChunk(xhr.status, xhr.responseText);
-	                    }
-	                    break;
-	                case 4:
-	                    if (xhr.responseText && xhr.responseText.length > 0) {
-	                        socket.onChunk(xhr.status, xhr.responseText);
-	                    }
-	                    socket.emit("finished", xhr.status);
-	                    socket.close();
-	                    break;
-	            }
-	        };
-	        return xhr;
-	    },
-	    abortRequest: function (xhr) {
-	        xhr.onreadystatechange = null;
-	        xhr.abort();
-	    }
-	};
-	exports.__esModule = true;
-	exports["default"] = hooks;
-
-
-/***/ }),
-/* 38 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var Collections = __webpack_require__(9);
-	var util_1 = __webpack_require__(11);
-	var level_1 = __webpack_require__(39);
-	var Timeline = (function () {
-	    function Timeline(key, session, options) {
-	        this.key = key;
-	        this.session = session;
-	        this.events = [];
-	        this.options = options || {};
-	        this.sent = 0;
-	        this.uniqueID = 0;
-	    }
-	    Timeline.prototype.log = function (level, event) {
-	        if (level <= this.options.level) {
-	            this.events.push(Collections.extend({}, event, { timestamp: util_1["default"].now() }));
-	            if (this.options.limit && this.events.length > this.options.limit) {
-	                this.events.shift();
-	            }
-	        }
-	    };
-	    Timeline.prototype.error = function (event) {
-	        this.log(level_1["default"].ERROR, event);
-	    };
-	    Timeline.prototype.info = function (event) {
-	        this.log(level_1["default"].INFO, event);
-	    };
-	    Timeline.prototype.debug = function (event) {
-	        this.log(level_1["default"].DEBUG, event);
-	    };
-	    Timeline.prototype.isEmpty = function () {
-	        return this.events.length === 0;
-	    };
-	    Timeline.prototype.send = function (sendfn, callback) {
-	        var _this = this;
-	        var data = Collections.extend({
-	            session: this.session,
-	            bundle: this.sent + 1,
-	            key: this.key,
-	            lib: "js",
-	            version: this.options.version,
-	            cluster: this.options.cluster,
-	            features: this.options.features,
-	            timeline: this.events
-	        }, this.options.params);
-	        this.events = [];
-	        sendfn(data, function (error, result) {
-	            if (!error) {
-	                _this.sent++;
-	            }
-	            if (callback) {
-	                callback(error, result);
-	            }
-	        });
-	        return true;
-	    };
-	    Timeline.prototype.generateUniqueID = function () {
-	        this.uniqueID++;
-	        return this.uniqueID;
-	    };
-	    return Timeline;
-	}());
-	exports.__esModule = true;
-	exports["default"] = Timeline;
-
-
-/***/ }),
-/* 39 */
-/***/ (function(module, exports) {
-
-	"use strict";
-	var TimelineLevel;
-	(function (TimelineLevel) {
-	    TimelineLevel[TimelineLevel["ERROR"] = 3] = "ERROR";
-	    TimelineLevel[TimelineLevel["INFO"] = 6] = "INFO";
-	    TimelineLevel[TimelineLevel["DEBUG"] = 7] = "DEBUG";
-	})(TimelineLevel || (TimelineLevel = {}));
-	exports.__esModule = true;
-	exports["default"] = TimelineLevel;
-
-
-/***/ }),
-/* 40 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var Collections = __webpack_require__(9);
-	var util_1 = __webpack_require__(11);
-	var transport_manager_1 = __webpack_require__(41);
-	var Errors = __webpack_require__(30);
-	var transport_strategy_1 = __webpack_require__(55);
-	var sequential_strategy_1 = __webpack_require__(56);
-	var best_connected_ever_strategy_1 = __webpack_require__(57);
-	var cached_strategy_1 = __webpack_require__(58);
-	var delayed_strategy_1 = __webpack_require__(59);
-	var if_strategy_1 = __webpack_require__(60);
-	var first_connected_strategy_1 = __webpack_require__(61);
-	var runtime_1 = __webpack_require__(2);
-	var Transports = runtime_1["default"].Transports;
-	exports.build = function (scheme, options) {
-	    var context = Collections.extend({}, globalContext, options);
-	    return evaluate(scheme, context)[1].strategy;
-	};
-	var UnsupportedStrategy = {
-	    isSupported: function () {
-	        return false;
-	    },
-	    connect: function (_, callback) {
-	        var deferred = util_1["default"].defer(function () {
-	            callback(new Errors.UnsupportedStrategy());
-	        });
-	        return {
-	            abort: function () {
-	                deferred.ensureAborted();
-	            },
-	            forceMinPriority: function () { }
-	        };
-	    }
-	};
-	function returnWithOriginalContext(f) {
-	    return function (context) {
-	        return [f.apply(this, arguments), context];
-	    };
-	}
-	var globalContext = {
-	    extend: function (context, first, second) {
-	        return [Collections.extend({}, first, second), context];
-	    },
-	    def: function (context, name, value) {
-	        if (context[name] !== undefined) {
-	            throw "Redefining symbol " + name;
-	        }
-	        context[name] = value;
-	        return [undefined, context];
-	    },
-	    def_transport: function (context, name, type, priority, options, manager) {
-	        var transportClass = Transports[type];
-	        if (!transportClass) {
-	            throw new Errors.UnsupportedTransport(type);
-	        }
-	        var enabled = (!context.enabledTransports ||
-	            Collections.arrayIndexOf(context.enabledTransports, name) !== -1) &&
-	            (!context.disabledTransports ||
-	                Collections.arrayIndexOf(context.disabledTransports, name) === -1);
-	        var transport;
-	        if (enabled) {
-	            transport = new transport_strategy_1["default"](name, priority, manager ? manager.getAssistant(transportClass) : transportClass, Collections.extend({
-	                key: context.key,
-	                encrypted: context.encrypted,
-	                timeline: context.timeline,
-	                ignoreNullOrigin: context.ignoreNullOrigin
-	            }, options));
-	        }
-	        else {
-	            transport = UnsupportedStrategy;
-	        }
-	        var newContext = context.def(context, name, transport)[1];
-	        newContext.Transports = context.Transports || {};
-	        newContext.Transports[name] = transport;
-	        return [undefined, newContext];
-	    },
-	    transport_manager: returnWithOriginalContext(function (_, options) {
-	        return new transport_manager_1["default"](options);
-	    }),
-	    sequential: returnWithOriginalContext(function (_, options) {
-	        var strategies = Array.prototype.slice.call(arguments, 2);
-	        return new sequential_strategy_1["default"](strategies, options);
-	    }),
-	    cached: returnWithOriginalContext(function (context, ttl, strategy) {
-	        return new cached_strategy_1["default"](strategy, context.Transports, {
-	            ttl: ttl,
-	            timeline: context.timeline,
-	            encrypted: context.encrypted
-	        });
-	    }),
-	    first_connected: returnWithOriginalContext(function (_, strategy) {
-	        return new first_connected_strategy_1["default"](strategy);
-	    }),
-	    best_connected_ever: returnWithOriginalContext(function () {
-	        var strategies = Array.prototype.slice.call(arguments, 1);
-	        return new best_connected_ever_strategy_1["default"](strategies);
-	    }),
-	    delayed: returnWithOriginalContext(function (_, delay, strategy) {
-	        return new delayed_strategy_1["default"](strategy, { delay: delay });
-	    }),
-	    "if": returnWithOriginalContext(function (_, test, trueBranch, falseBranch) {
-	        return new if_strategy_1["default"](test, trueBranch, falseBranch);
-	    }),
-	    is_supported: returnWithOriginalContext(function (_, strategy) {
-	        return function () {
-	            return strategy.isSupported();
-	        };
-	    })
-	};
-	function isSymbol(expression) {
-	    return (typeof expression === "string") && expression.charAt(0) === ":";
-	}
-	function getSymbolValue(expression, context) {
-	    return context[expression.slice(1)];
-	}
-	function evaluateListOfExpressions(expressions, context) {
-	    if (expressions.length === 0) {
-	        return [[], context];
-	    }
-	    var head = evaluate(expressions[0], context);
-	    var tail = evaluateListOfExpressions(expressions.slice(1), head[1]);
-	    return [[head[0]].concat(tail[0]), tail[1]];
-	}
-	function evaluateString(expression, context) {
-	    if (!isSymbol(expression)) {
-	        return [expression, context];
-	    }
-	    var value = getSymbolValue(expression, context);
-	    if (value === undefined) {
-	        throw "Undefined symbol " + expression;
-	    }
-	    return [value, context];
-	}
-	function evaluateArray(expression, context) {
-	    if (isSymbol(expression[0])) {
-	        var f = getSymbolValue(expression[0], context);
-	        if (expression.length > 1) {
-	            if (typeof f !== "function") {
-	                throw "Calling non-function " + expression[0];
-	            }
-	            var args = [Collections.extend({}, context)].concat(Collections.map(expression.slice(1), function (arg) {
-	                return evaluate(arg, Collections.extend({}, context))[0];
-	            }));
-	            return f.apply(this, args);
-	        }
-	        else {
-	            return [f, context];
-	        }
-	    }
-	    else {
-	        return evaluateListOfExpressions(expression, context);
-	    }
-	}
-	function evaluate(expression, context) {
-	    if (typeof expression === "string") {
-	        return evaluateString(expression, context);
-	    }
-	    else if (typeof expression === "object") {
-	        if (expression instanceof Array && expression.length > 0) {
-	            return evaluateArray(expression, context);
-	        }
-	    }
-	    return [expression, context];
-	}
-
-
-/***/ }),
-/* 41 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var factory_1 = __webpack_require__(42);
-	var TransportManager = (function () {
-	    function TransportManager(options) {
-	        this.options = options || {};
-	        this.livesLeft = this.options.lives || Infinity;
-	    }
-	    TransportManager.prototype.getAssistant = function (transport) {
-	        return factory_1["default"].createAssistantToTheTransportManager(this, transport, {
-	            minPingDelay: this.options.minPingDelay,
-	            maxPingDelay: this.options.maxPingDelay
-	        });
-	    };
-	    TransportManager.prototype.isAlive = function () {
-	        return this.livesLeft > 0;
-	    };
-	    TransportManager.prototype.reportDeath = function () {
-	        this.livesLeft -= 1;
-	    };
-	    return TransportManager;
-	}());
-	exports.__esModule = true;
-	exports["default"] = TransportManager;
-
-
-/***/ }),
-/* 42 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var assistant_to_the_transport_manager_1 = __webpack_require__(43);
-	var handshake_1 = __webpack_require__(44);
-	var pusher_authorizer_1 = __webpack_require__(47);
-	var timeline_sender_1 = __webpack_require__(48);
-	var presence_channel_1 = __webpack_require__(49);
-	var private_channel_1 = __webpack_require__(50);
-	var channel_1 = __webpack_require__(51);
-	var connection_manager_1 = __webpack_require__(53);
-	var channels_1 = __webpack_require__(54);
-	var Factory = {
-	    createChannels: function () {
-	        return new channels_1["default"]();
-	    },
-	    createConnectionManager: function (key, options) {
-	        return new connection_manager_1["default"](key, options);
-	    },
-	    createChannel: function (name, pusher) {
-	        return new channel_1["default"](name, pusher);
-	    },
-	    createPrivateChannel: function (name, pusher) {
-	        return new private_channel_1["default"](name, pusher);
-	    },
-	    createPresenceChannel: function (name, pusher) {
-	        return new presence_channel_1["default"](name, pusher);
-	    },
-	    createTimelineSender: function (timeline, options) {
-	        return new timeline_sender_1["default"](timeline, options);
-	    },
-	    createAuthorizer: function (channel, options) {
-	        if (options.authorizer) {
-	            return options.authorizer(channel, options);
-	        }
-	        return new pusher_authorizer_1["default"](channel, options);
-	    },
-	    createHandshake: function (transport, callback) {
-	        return new handshake_1["default"](transport, callback);
-	    },
-	    createAssistantToTheTransportManager: function (manager, transport, options) {
-	        return new assistant_to_the_transport_manager_1["default"](manager, transport, options);
-	    }
-	};
-	exports.__esModule = true;
-	exports["default"] = Factory;
-
-
-/***/ }),
-/* 43 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var util_1 = __webpack_require__(11);
-	var Collections = __webpack_require__(9);
-	var AssistantToTheTransportManager = (function () {
-	    function AssistantToTheTransportManager(manager, transport, options) {
-	        this.manager = manager;
-	        this.transport = transport;
-	        this.minPingDelay = options.minPingDelay;
-	        this.maxPingDelay = options.maxPingDelay;
-	        this.pingDelay = undefined;
-	    }
-	    AssistantToTheTransportManager.prototype.createConnection = function (name, priority, key, options) {
-	        var _this = this;
-	        options = Collections.extend({}, options, {
-	            activityTimeout: this.pingDelay
-	        });
-	        var connection = this.transport.createConnection(name, priority, key, options);
-	        var openTimestamp = null;
-	        var onOpen = function () {
-	            connection.unbind("open", onOpen);
-	            connection.bind("closed", onClosed);
-	            openTimestamp = util_1["default"].now();
-	        };
-	        var onClosed = function (closeEvent) {
-	            connection.unbind("closed", onClosed);
-	            if (closeEvent.code === 1002 || closeEvent.code === 1003) {
-	                _this.manager.reportDeath();
-	            }
-	            else if (!closeEvent.wasClean && openTimestamp) {
-	                var lifespan = util_1["default"].now() - openTimestamp;
-	                if (lifespan < 2 * _this.maxPingDelay) {
-	                    _this.manager.reportDeath();
-	                    _this.pingDelay = Math.max(lifespan / 2, _this.minPingDelay);
-	                }
-	            }
-	        };
-	        connection.bind("open", onOpen);
-	        return connection;
-	    };
-	    AssistantToTheTransportManager.prototype.isSupported = function (environment) {
-	        return this.manager.isAlive() && this.transport.isSupported(environment);
-	    };
-	    return AssistantToTheTransportManager;
-	}());
-	exports.__esModule = true;
-	exports["default"] = AssistantToTheTransportManager;
-
-
-/***/ }),
-/* 44 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var Collections = __webpack_require__(9);
-	var Protocol = __webpack_require__(45);
-	var connection_1 = __webpack_require__(46);
-	var Handshake = (function () {
-	    function Handshake(transport, callback) {
-	        this.transport = transport;
-	        this.callback = callback;
-	        this.bindListeners();
-	    }
-	    Handshake.prototype.close = function () {
-	        this.unbindListeners();
-	        this.transport.close();
-	    };
-	    Handshake.prototype.bindListeners = function () {
-	        var _this = this;
-	        this.onMessage = function (m) {
-	            _this.unbindListeners();
-	            var result;
-	            try {
-	                result = Protocol.processHandshake(m);
-	            }
-	            catch (e) {
-	                _this.finish("error", { error: e });
-	                _this.transport.close();
-	                return;
-	            }
-	            if (result.action === "connected") {
-	                _this.finish("connected", {
-	                    connection: new connection_1["default"](result.id, _this.transport),
-	                    activityTimeout: result.activityTimeout
-	                });
-	            }
-	            else {
-	                _this.finish(result.action, { error: result.error });
-	                _this.transport.close();
-	            }
-	        };
-	        this.onClosed = function (closeEvent) {
-	            _this.unbindListeners();
-	            var action = Protocol.getCloseAction(closeEvent) || "backoff";
-	            var error = Protocol.getCloseError(closeEvent);
-	            _this.finish(action, { error: error });
-	        };
-	        this.transport.bind("message", this.onMessage);
-	        this.transport.bind("closed", this.onClosed);
-	    };
-	    Handshake.prototype.unbindListeners = function () {
-	        this.transport.unbind("message", this.onMessage);
-	        this.transport.unbind("closed", this.onClosed);
-	    };
-	    Handshake.prototype.finish = function (action, params) {
-	        this.callback(Collections.extend({ transport: this.transport, action: action }, params));
-	    };
-	    return Handshake;
-	}());
-	exports.__esModule = true;
-	exports["default"] = Handshake;
-
-
-/***/ }),
-/* 45 */
-/***/ (function(module, exports) {
-
-	"use strict";
-	exports.decodeMessage = function (message) {
-	    try {
-	        var params = JSON.parse(message.data);
-	        if (typeof params.data === 'string') {
-	            try {
-	                params.data = JSON.parse(params.data);
-	            }
-	            catch (e) {
-	                if (!(e instanceof SyntaxError)) {
-	                    throw e;
-	                }
-	            }
-	        }
-	        return params;
-	    }
-	    catch (e) {
-	        throw { type: 'MessageParseError', error: e, data: message.data };
-	    }
-	};
-	exports.encodeMessage = function (message) {
-	    return JSON.stringify(message);
-	};
-	exports.processHandshake = function (message) {
-	    message = exports.decodeMessage(message);
-	    if (message.event === "pusher:connection_established") {
-	        if (!message.data.activity_timeout) {
-	            throw "No activity timeout specified in handshake";
-	        }
-	        return {
-	            action: "connected",
-	            id: message.data.socket_id,
-	            activityTimeout: message.data.activity_timeout * 1000
-	        };
-	    }
-	    else if (message.event === "pusher:error") {
-	        return {
-	            action: this.getCloseAction(message.data),
-	            error: this.getCloseError(message.data)
-	        };
-	    }
-	    else {
-	        throw "Invalid handshake";
-	    }
-	};
-	exports.getCloseAction = function (closeEvent) {
-	    if (closeEvent.code < 4000) {
-	        if (closeEvent.code >= 1002 && closeEvent.code <= 1004) {
-	            return "backoff";
-	        }
-	        else {
-	            return null;
-	        }
-	    }
-	    else if (closeEvent.code === 4000) {
-	        return "ssl_only";
-	    }
-	    else if (closeEvent.code < 4100) {
-	        return "refused";
-	    }
-	    else if (closeEvent.code < 4200) {
-	        return "backoff";
-	    }
-	    else if (closeEvent.code < 4300) {
-	        return "retry";
-	    }
-	    else {
-	        return "refused";
-	    }
-	};
-	exports.getCloseError = function (closeEvent) {
-	    if (closeEvent.code !== 1000 && closeEvent.code !== 1001) {
-	        return {
-	            type: 'PusherError',
-	            data: {
-	                code: closeEvent.code,
-	                message: closeEvent.reason || closeEvent.message
-	            }
-	        };
-	    }
-	    else {
-	        return null;
-	    }
-	};
-
-
-/***/ }),
-/* 46 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var __extends = (this && this.__extends) || function (d, b) {
-	    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
-	    function __() { this.constructor = d; }
-	    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-	};
-	var Collections = __webpack_require__(9);
-	var dispatcher_1 = __webpack_require__(23);
-	var Protocol = __webpack_require__(45);
-	var logger_1 = __webpack_require__(8);
-	var Connection = (function (_super) {
-	    __extends(Connection, _super);
-	    function Connection(id, transport) {
-	        _super.call(this);
-	        this.id = id;
-	        this.transport = transport;
-	        this.activityTimeout = transport.activityTimeout;
-	        this.bindListeners();
-	    }
-	    Connection.prototype.handlesActivityChecks = function () {
-	        return this.transport.handlesActivityChecks();
-	    };
-	    Connection.prototype.send = function (data) {
-	        return this.transport.send(data);
-	    };
-	    Connection.prototype.send_event = function (name, data, channel) {
-	        var message = { event: name, data: data };
-	        if (channel) {
-	            message.channel = channel;
-	        }
-	        logger_1["default"].debug('Event sent', message);
-	        return this.send(Protocol.encodeMessage(message));
-	    };
-	    Connection.prototype.ping = function () {
-	        if (this.transport.supportsPing()) {
-	            this.transport.ping();
-	        }
-	        else {
-	            this.send_event('pusher:ping', {});
-	        }
-	    };
-	    Connection.prototype.close = function () {
-	        this.transport.close();
-	    };
-	    Connection.prototype.bindListeners = function () {
-	        var _this = this;
-	        var listeners = {
-	            message: function (m) {
-	                var message;
-	                try {
-	                    message = Protocol.decodeMessage(m);
-	                }
-	                catch (e) {
-	                    _this.emit('error', {
-	                        type: 'MessageParseError',
-	                        error: e,
-	                        data: m.data
-	                    });
-	                }
-	                if (message !== undefined) {
-	                    logger_1["default"].debug('Event recd', message);
-	                    switch (message.event) {
-	                        case 'pusher:error':
-	                            _this.emit('error', { type: 'PusherError', data: message.data });
-	                            break;
-	                        case 'pusher:ping':
-	                            _this.emit("ping");
-	                            break;
-	                        case 'pusher:pong':
-	                            _this.emit("pong");
-	                            break;
-	                    }
-	                    _this.emit('message', message);
-	                }
-	            },
-	            activity: function () {
-	                _this.emit("activity");
-	            },
-	            error: function (error) {
-	                _this.emit("error", { type: "WebSocketError", error: error });
-	            },
-	            closed: function (closeEvent) {
-	                unbindListeners();
-	                if (closeEvent && closeEvent.code) {
-	                    _this.handleCloseEvent(closeEvent);
-	                }
-	                _this.transport = null;
-	                _this.emit("closed");
-	            }
-	        };
-	        var unbindListeners = function () {
-	            Collections.objectApply(listeners, function (listener, event) {
-	                _this.transport.unbind(event, listener);
-	            });
-	        };
-	        Collections.objectApply(listeners, function (listener, event) {
-	            _this.transport.bind(event, listener);
-	        });
-	    };
-	    Connection.prototype.handleCloseEvent = function (closeEvent) {
-	        var action = Protocol.getCloseAction(closeEvent);
-	        var error = Protocol.getCloseError(closeEvent);
-	        if (error) {
-	            this.emit('error', error);
-	        }
-	        if (action) {
-	            this.emit(action);
-	        }
-	    };
-	    return Connection;
-	}(dispatcher_1["default"]));
-	exports.__esModule = true;
-	exports["default"] = Connection;
-
-
-/***/ }),
-/* 47 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var runtime_1 = __webpack_require__(2);
-	var PusherAuthorizer = (function () {
-	    function PusherAuthorizer(channel, options) {
-	        this.channel = channel;
-	        var authTransport = options.authTransport;
-	        if (typeof runtime_1["default"].getAuthorizers()[authTransport] === "undefined") {
-	            throw "'" + authTransport + "' is not a recognized auth transport";
-	        }
-	        this.type = authTransport;
-	        this.options = options;
-	        this.authOptions = (options || {}).auth || {};
-	    }
-	    PusherAuthorizer.prototype.composeQuery = function (socketId) {
-	        var query = 'socket_id=' + encodeURIComponent(socketId) +
-	            '&channel_name=' + encodeURIComponent(this.channel.name);
-	        for (var i in this.authOptions.params) {
-	            query += "&" + encodeURIComponent(i) + "=" + encodeURIComponent(this.authOptions.params[i]);
-	        }
-	        return query;
-	    };
-	    PusherAuthorizer.prototype.authorize = function (socketId, callback) {
-	        PusherAuthorizer.authorizers = PusherAuthorizer.authorizers || runtime_1["default"].getAuthorizers();
-	        return PusherAuthorizer.authorizers[this.type].call(this, runtime_1["default"], socketId, callback);
-	    };
-	    return PusherAuthorizer;
-	}());
-	exports.__esModule = true;
-	exports["default"] = PusherAuthorizer;
-
-
-/***/ }),
-/* 48 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var runtime_1 = __webpack_require__(2);
-	var TimelineSender = (function () {
-	    function TimelineSender(timeline, options) {
-	        this.timeline = timeline;
-	        this.options = options || {};
-	    }
-	    TimelineSender.prototype.send = function (encrypted, callback) {
-	        if (this.timeline.isEmpty()) {
-	            return;
-	        }
-	        this.timeline.send(runtime_1["default"].TimelineTransport.getAgent(this, encrypted), callback);
-	    };
-	    return TimelineSender;
-	}());
-	exports.__esModule = true;
-	exports["default"] = TimelineSender;
-
-
-/***/ }),
-/* 49 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var __extends = (this && this.__extends) || function (d, b) {
-	    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
-	    function __() { this.constructor = d; }
-	    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-	};
-	var private_channel_1 = __webpack_require__(50);
-	var logger_1 = __webpack_require__(8);
-	var members_1 = __webpack_require__(52);
-	var PresenceChannel = (function (_super) {
-	    __extends(PresenceChannel, _super);
-	    function PresenceChannel(name, pusher) {
-	        _super.call(this, name, pusher);
-	        this.members = new members_1["default"]();
-	    }
-	    PresenceChannel.prototype.authorize = function (socketId, callback) {
-	        var _this = this;
-	        _super.prototype.authorize.call(this, socketId, function (error, authData) {
-	            if (!error) {
-	                if (authData.channel_data === undefined) {
-	                    logger_1["default"].warn("Invalid auth response for channel '" +
-	                        _this.name +
-	                        "', expected 'channel_data' field");
-	                    callback("Invalid auth response");
-	                    return;
-	                }
-	                var channelData = JSON.parse(authData.channel_data);
-	                _this.members.setMyID(channelData.user_id);
-	            }
-	            callback(error, authData);
-	        });
-	    };
-	    PresenceChannel.prototype.handleEvent = function (event, data) {
-	        switch (event) {
-	            case "pusher_internal:subscription_succeeded":
-	                this.subscriptionPending = false;
-	                this.subscribed = true;
-	                if (this.subscriptionCancelled) {
-	                    this.pusher.unsubscribe(this.name);
-	                }
-	                else {
-	                    this.members.onSubscription(data);
-	                    this.emit("pusher:subscription_succeeded", this.members);
-	                }
-	                break;
-	            case "pusher_internal:member_added":
-	                var addedMember = this.members.addMember(data);
-	                this.emit('pusher:member_added', addedMember);
-	                break;
-	            case "pusher_internal:member_removed":
-	                var removedMember = this.members.removeMember(data);
-	                if (removedMember) {
-	                    this.emit('pusher:member_removed', removedMember);
-	                }
-	                break;
-	            default:
-	                private_channel_1["default"].prototype.handleEvent.call(this, event, data);
-	        }
-	    };
-	    PresenceChannel.prototype.disconnect = function () {
-	        this.members.reset();
-	        _super.prototype.disconnect.call(this);
-	    };
-	    return PresenceChannel;
-	}(private_channel_1["default"]));
-	exports.__esModule = true;
-	exports["default"] = PresenceChannel;
-
-
-/***/ }),
-/* 50 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var __extends = (this && this.__extends) || function (d, b) {
-	    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
-	    function __() { this.constructor = d; }
-	    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-	};
-	var factory_1 = __webpack_require__(42);
-	var channel_1 = __webpack_require__(51);
-	var PrivateChannel = (function (_super) {
-	    __extends(PrivateChannel, _super);
-	    function PrivateChannel() {
-	        _super.apply(this, arguments);
-	    }
-	    PrivateChannel.prototype.authorize = function (socketId, callback) {
-	        var authorizer = factory_1["default"].createAuthorizer(this, this.pusher.config);
-	        return authorizer.authorize(socketId, callback);
-	    };
-	    return PrivateChannel;
-	}(channel_1["default"]));
-	exports.__esModule = true;
-	exports["default"] = PrivateChannel;
-
-
-/***/ }),
-/* 51 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var __extends = (this && this.__extends) || function (d, b) {
-	    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
-	    function __() { this.constructor = d; }
-	    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-	};
-	var dispatcher_1 = __webpack_require__(23);
-	var Errors = __webpack_require__(30);
-	var logger_1 = __webpack_require__(8);
-	var Channel = (function (_super) {
-	    __extends(Channel, _super);
-	    function Channel(name, pusher) {
-	        _super.call(this, function (event, data) {
-	            logger_1["default"].debug('No callbacks on ' + name + ' for ' + event);
-	        });
-	        this.name = name;
-	        this.pusher = pusher;
-	        this.subscribed = false;
-	        this.subscriptionPending = false;
-	        this.subscriptionCancelled = false;
-	    }
-	    Channel.prototype.authorize = function (socketId, callback) {
-	        return callback(false, {});
-	    };
-	    Channel.prototype.trigger = function (event, data) {
-	        if (event.indexOf("client-") !== 0) {
-	            throw new Errors.BadEventName("Event '" + event + "' does not start with 'client-'");
-	        }
-	        return this.pusher.send_event(event, data, this.name);
-	    };
-	    Channel.prototype.disconnect = function () {
-	        this.subscribed = false;
-	    };
-	    Channel.prototype.handleEvent = function (event, data) {
-	        if (event.indexOf("pusher_internal:") === 0) {
-	            if (event === "pusher_internal:subscription_succeeded") {
-	                this.subscriptionPending = false;
-	                this.subscribed = true;
-	                if (this.subscriptionCancelled) {
-	                    this.pusher.unsubscribe(this.name);
-	                }
-	                else {
-	                    this.emit("pusher:subscription_succeeded", data);
-	                }
-	            }
-	        }
-	        else {
-	            this.emit(event, data);
-	        }
-	    };
-	    Channel.prototype.subscribe = function () {
-	        var _this = this;
-	        if (this.subscribed) {
-	            return;
-	        }
-	        this.subscriptionPending = true;
-	        this.subscriptionCancelled = false;
-	        this.authorize(this.pusher.connection.socket_id, function (error, data) {
-	            if (error) {
-	                _this.handleEvent('pusher:subscription_error', data);
-	            }
-	            else {
-	                _this.pusher.send_event('pusher:subscribe', {
-	                    auth: data.auth,
-	                    channel_data: data.channel_data,
-	                    channel: _this.name
-	                });
-	            }
-	        });
-	    };
-	    Channel.prototype.unsubscribe = function () {
-	        this.subscribed = false;
-	        this.pusher.send_event('pusher:unsubscribe', {
-	            channel: this.name
-	        });
-	    };
-	    Channel.prototype.cancelSubscription = function () {
-	        this.subscriptionCancelled = true;
-	    };
-	    Channel.prototype.reinstateSubscription = function () {
-	        this.subscriptionCancelled = false;
-	    };
-	    return Channel;
-	}(dispatcher_1["default"]));
-	exports.__esModule = true;
-	exports["default"] = Channel;
-
-
-/***/ }),
-/* 52 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var Collections = __webpack_require__(9);
-	var Members = (function () {
-	    function Members() {
-	        this.reset();
-	    }
-	    Members.prototype.get = function (id) {
-	        if (Object.prototype.hasOwnProperty.call(this.members, id)) {
-	            return {
-	                id: id,
-	                info: this.members[id]
-	            };
-	        }
-	        else {
-	            return null;
-	        }
-	    };
-	    Members.prototype.each = function (callback) {
-	        var _this = this;
-	        Collections.objectApply(this.members, function (member, id) {
-	            callback(_this.get(id));
-	        });
-	    };
-	    Members.prototype.setMyID = function (id) {
-	        this.myID = id;
-	    };
-	    Members.prototype.onSubscription = function (subscriptionData) {
-	        this.members = subscriptionData.presence.hash;
-	        this.count = subscriptionData.presence.count;
-	        this.me = this.get(this.myID);
-	    };
-	    Members.prototype.addMember = function (memberData) {
-	        if (this.get(memberData.user_id) === null) {
-	            this.count++;
-	        }
-	        this.members[memberData.user_id] = memberData.user_info;
-	        return this.get(memberData.user_id);
-	    };
-	    Members.prototype.removeMember = function (memberData) {
-	        var member = this.get(memberData.user_id);
-	        if (member) {
-	            delete this.members[memberData.user_id];
-	            this.count--;
-	        }
-	        return member;
-	    };
-	    Members.prototype.reset = function () {
-	        this.members = {};
-	        this.count = 0;
-	        this.myID = null;
-	        this.me = null;
-	    };
-	    return Members;
-	}());
-	exports.__esModule = true;
-	exports["default"] = Members;
-
-
-/***/ }),
-/* 53 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var __extends = (this && this.__extends) || function (d, b) {
-	    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
-	    function __() { this.constructor = d; }
-	    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-	};
-	var dispatcher_1 = __webpack_require__(23);
-	var timers_1 = __webpack_require__(12);
-	var logger_1 = __webpack_require__(8);
-	var Collections = __webpack_require__(9);
-	var runtime_1 = __webpack_require__(2);
-	var ConnectionManager = (function (_super) {
-	    __extends(ConnectionManager, _super);
-	    function ConnectionManager(key, options) {
-	        var _this = this;
-	        _super.call(this);
-	        this.key = key;
-	        this.options = options || {};
-	        this.state = "initialized";
-	        this.connection = null;
-	        this.encrypted = !!options.encrypted;
-	        this.timeline = this.options.timeline;
-	        this.connectionCallbacks = this.buildConnectionCallbacks();
-	        this.errorCallbacks = this.buildErrorCallbacks();
-	        this.handshakeCallbacks = this.buildHandshakeCallbacks(this.errorCallbacks);
-	        var Network = runtime_1["default"].getNetwork();
-	        Network.bind("online", function () {
-	            _this.timeline.info({ netinfo: "online" });
-	            if (_this.state === "connecting" || _this.state === "unavailable") {
-	                _this.retryIn(0);
-	            }
-	        });
-	        Network.bind("offline", function () {
-	            _this.timeline.info({ netinfo: "offline" });
-	            if (_this.connection) {
-	                _this.sendActivityCheck();
-	            }
-	        });
-	        this.updateStrategy();
-	    }
-	    ConnectionManager.prototype.connect = function () {
-	        if (this.connection || this.runner) {
-	            return;
-	        }
-	        if (!this.strategy.isSupported()) {
-	            this.updateState("failed");
-	            return;
-	        }
-	        this.updateState("connecting");
-	        this.startConnecting();
-	        this.setUnavailableTimer();
-	    };
-	    ;
-	    ConnectionManager.prototype.send = function (data) {
-	        if (this.connection) {
-	            return this.connection.send(data);
-	        }
-	        else {
-	            return false;
-	        }
-	    };
-	    ;
-	    ConnectionManager.prototype.send_event = function (name, data, channel) {
-	        if (this.connection) {
-	            return this.connection.send_event(name, data, channel);
-	        }
-	        else {
-	            return false;
-	        }
-	    };
-	    ;
-	    ConnectionManager.prototype.disconnect = function () {
-	        this.disconnectInternally();
-	        this.updateState("disconnected");
-	    };
-	    ;
-	    ConnectionManager.prototype.isEncrypted = function () {
-	        return this.encrypted;
-	    };
-	    ;
-	    ConnectionManager.prototype.startConnecting = function () {
-	        var _this = this;
-	        var callback = function (error, handshake) {
-	            if (error) {
-	                _this.runner = _this.strategy.connect(0, callback);
-	            }
-	            else {
-	                if (handshake.action === "error") {
-	                    _this.emit("error", { type: "HandshakeError", error: handshake.error });
-	                    _this.timeline.error({ handshakeError: handshake.error });
-	                }
-	                else {
-	                    _this.abortConnecting();
-	                    _this.handshakeCallbacks[handshake.action](handshake);
-	                }
-	            }
-	        };
-	        this.runner = this.strategy.connect(0, callback);
-	    };
-	    ;
-	    ConnectionManager.prototype.abortConnecting = function () {
-	        if (this.runner) {
-	            this.runner.abort();
-	            this.runner = null;
-	        }
-	    };
-	    ;
-	    ConnectionManager.prototype.disconnectInternally = function () {
-	        this.abortConnecting();
-	        this.clearRetryTimer();
-	        this.clearUnavailableTimer();
-	        if (this.connection) {
-	            var connection = this.abandonConnection();
-	            connection.close();
-	        }
-	    };
-	    ;
-	    ConnectionManager.prototype.updateStrategy = function () {
-	        this.strategy = this.options.getStrategy({
-	            key: this.key,
-	            timeline: this.timeline,
-	            encrypted: this.encrypted
-	        });
-	    };
-	    ;
-	    ConnectionManager.prototype.retryIn = function (delay) {
-	        var _this = this;
-	        this.timeline.info({ action: "retry", delay: delay });
-	        if (delay > 0) {
-	            this.emit("connecting_in", Math.round(delay / 1000));
-	        }
-	        this.retryTimer = new timers_1.OneOffTimer(delay || 0, function () {
-	            _this.disconnectInternally();
-	            _this.connect();
-	        });
-	    };
-	    ;
-	    ConnectionManager.prototype.clearRetryTimer = function () {
-	        if (this.retryTimer) {
-	            this.retryTimer.ensureAborted();
-	            this.retryTimer = null;
-	        }
-	    };
-	    ;
-	    ConnectionManager.prototype.setUnavailableTimer = function () {
-	        var _this = this;
-	        this.unavailableTimer = new timers_1.OneOffTimer(this.options.unavailableTimeout, function () {
-	            _this.updateState("unavailable");
-	        });
-	    };
-	    ;
-	    ConnectionManager.prototype.clearUnavailableTimer = function () {
-	        if (this.unavailableTimer) {
-	            this.unavailableTimer.ensureAborted();
-	        }
-	    };
-	    ;
-	    ConnectionManager.prototype.sendActivityCheck = function () {
-	        var _this = this;
-	        this.stopActivityCheck();
-	        this.connection.ping();
-	        this.activityTimer = new timers_1.OneOffTimer(this.options.pongTimeout, function () {
-	            _this.timeline.error({ pong_timed_out: _this.options.pongTimeout });
-	            _this.retryIn(0);
-	        });
-	    };
-	    ;
-	    ConnectionManager.prototype.resetActivityCheck = function () {
-	        var _this = this;
-	        this.stopActivityCheck();
-	        if (!this.connection.handlesActivityChecks()) {
-	            this.activityTimer = new timers_1.OneOffTimer(this.activityTimeout, function () {
-	                _this.sendActivityCheck();
-	            });
-	        }
-	    };
-	    ;
-	    ConnectionManager.prototype.stopActivityCheck = function () {
-	        if (this.activityTimer) {
-	            this.activityTimer.ensureAborted();
-	        }
-	    };
-	    ;
-	    ConnectionManager.prototype.buildConnectionCallbacks = function () {
-	        var _this = this;
-	        return {
-	            message: function (message) {
-	                _this.resetActivityCheck();
-	                _this.emit('message', message);
-	            },
-	            ping: function () {
-	                _this.send_event('pusher:pong', {});
-	            },
-	            activity: function () {
-	                _this.resetActivityCheck();
-	            },
-	            error: function (error) {
-	                _this.emit("error", { type: "WebSocketError", error: error });
-	            },
-	            closed: function () {
-	                _this.abandonConnection();
-	                if (_this.shouldRetry()) {
-	                    _this.retryIn(1000);
-	                }
-	            }
-	        };
-	    };
-	    ;
-	    ConnectionManager.prototype.buildHandshakeCallbacks = function (errorCallbacks) {
-	        var _this = this;
-	        return Collections.extend({}, errorCallbacks, {
-	            connected: function (handshake) {
-	                _this.activityTimeout = Math.min(_this.options.activityTimeout, handshake.activityTimeout, handshake.connection.activityTimeout || Infinity);
-	                _this.clearUnavailableTimer();
-	                _this.setConnection(handshake.connection);
-	                _this.socket_id = _this.connection.id;
-	                _this.updateState("connected", { socket_id: _this.socket_id });
-	            }
-	        });
-	    };
-	    ;
-	    ConnectionManager.prototype.buildErrorCallbacks = function () {
-	        var _this = this;
-	        var withErrorEmitted = function (callback) {
-	            return function (result) {
-	                if (result.error) {
-	                    _this.emit("error", { type: "WebSocketError", error: result.error });
-	                }
-	                callback(result);
-	            };
-	        };
-	        return {
-	            ssl_only: withErrorEmitted(function () {
-	                _this.encrypted = true;
-	                _this.updateStrategy();
-	                _this.retryIn(0);
-	            }),
-	            refused: withErrorEmitted(function () {
-	                _this.disconnect();
-	            }),
-	            backoff: withErrorEmitted(function () {
-	                _this.retryIn(1000);
-	            }),
-	            retry: withErrorEmitted(function () {
-	                _this.retryIn(0);
-	            })
-	        };
-	    };
-	    ;
-	    ConnectionManager.prototype.setConnection = function (connection) {
-	        this.connection = connection;
-	        for (var event in this.connectionCallbacks) {
-	            this.connection.bind(event, this.connectionCallbacks[event]);
-	        }
-	        this.resetActivityCheck();
-	    };
-	    ;
-	    ConnectionManager.prototype.abandonConnection = function () {
-	        if (!this.connection) {
-	            return;
-	        }
-	        this.stopActivityCheck();
-	        for (var event in this.connectionCallbacks) {
-	            this.connection.unbind(event, this.connectionCallbacks[event]);
-	        }
-	        var connection = this.connection;
-	        this.connection = null;
-	        return connection;
-	    };
-	    ConnectionManager.prototype.updateState = function (newState, data) {
-	        var previousState = this.state;
-	        this.state = newState;
-	        if (previousState !== newState) {
-	            var newStateDescription = newState;
-	            if (newStateDescription === "connected") {
-	                newStateDescription += " with new socket ID " + data.socket_id;
-	            }
-	            logger_1["default"].debug('State changed', previousState + ' -> ' + newStateDescription);
-	            this.timeline.info({ state: newState, params: data });
-	            this.emit('state_change', { previous: previousState, current: newState });
-	            this.emit(newState, data);
-	        }
-	    };
-	    ConnectionManager.prototype.shouldRetry = function () {
-	        return this.state === "connecting" || this.state === "connected";
-	    };
-	    return ConnectionManager;
-	}(dispatcher_1["default"]));
-	exports.__esModule = true;
-	exports["default"] = ConnectionManager;
-
-
-/***/ }),
-/* 54 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var Collections = __webpack_require__(9);
-	var factory_1 = __webpack_require__(42);
-	var Channels = (function () {
-	    function Channels() {
-	        this.channels = {};
-	    }
-	    Channels.prototype.add = function (name, pusher) {
-	        if (!this.channels[name]) {
-	            this.channels[name] = createChannel(name, pusher);
-	        }
-	        return this.channels[name];
-	    };
-	    Channels.prototype.all = function () {
-	        return Collections.values(this.channels);
-	    };
-	    Channels.prototype.find = function (name) {
-	        return this.channels[name];
-	    };
-	    Channels.prototype.remove = function (name) {
-	        var channel = this.channels[name];
-	        delete this.channels[name];
-	        return channel;
-	    };
-	    Channels.prototype.disconnect = function () {
-	        Collections.objectApply(this.channels, function (channel) {
-	            channel.disconnect();
-	        });
-	    };
-	    return Channels;
-	}());
-	exports.__esModule = true;
-	exports["default"] = Channels;
-	function createChannel(name, pusher) {
-	    if (name.indexOf('private-') === 0) {
-	        return factory_1["default"].createPrivateChannel(name, pusher);
-	    }
-	    else if (name.indexOf('presence-') === 0) {
-	        return factory_1["default"].createPresenceChannel(name, pusher);
-	    }
-	    else {
-	        return factory_1["default"].createChannel(name, pusher);
-	    }
-	}
-
-
-/***/ }),
-/* 55 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var factory_1 = __webpack_require__(42);
-	var util_1 = __webpack_require__(11);
-	var Errors = __webpack_require__(30);
-	var Collections = __webpack_require__(9);
-	var TransportStrategy = (function () {
-	    function TransportStrategy(name, priority, transport, options) {
-	        this.name = name;
-	        this.priority = priority;
-	        this.transport = transport;
-	        this.options = options || {};
-	    }
-	    TransportStrategy.prototype.isSupported = function () {
-	        return this.transport.isSupported({
-	            encrypted: this.options.encrypted
-	        });
-	    };
-	    TransportStrategy.prototype.connect = function (minPriority, callback) {
-	        var _this = this;
-	        if (!this.isSupported()) {
-	            return failAttempt(new Errors.UnsupportedStrategy(), callback);
-	        }
-	        else if (this.priority < minPriority) {
-	            return failAttempt(new Errors.TransportPriorityTooLow(), callback);
-	        }
-	        var connected = false;
-	        var transport = this.transport.createConnection(this.name, this.priority, this.options.key, this.options);
-	        var handshake = null;
-	        var onInitialized = function () {
-	            transport.unbind("initialized", onInitialized);
-	            transport.connect();
-	        };
-	        var onOpen = function () {
-	            handshake = factory_1["default"].createHandshake(transport, function (result) {
-	                connected = true;
-	                unbindListeners();
-	                callback(null, result);
-	            });
-	        };
-	        var onError = function (error) {
-	            unbindListeners();
-	            callback(error);
-	        };
-	        var onClosed = function () {
-	            unbindListeners();
-	            var serializedTransport;
-	            serializedTransport = Collections.safeJSONStringify(transport);
-	            callback(new Errors.TransportClosed(serializedTransport));
-	        };
-	        var unbindListeners = function () {
-	            transport.unbind("initialized", onInitialized);
-	            transport.unbind("open", onOpen);
-	            transport.unbind("error", onError);
-	            transport.unbind("closed", onClosed);
-	        };
-	        transport.bind("initialized", onInitialized);
-	        transport.bind("open", onOpen);
-	        transport.bind("error", onError);
-	        transport.bind("closed", onClosed);
-	        transport.initialize();
-	        return {
-	            abort: function () {
-	                if (connected) {
-	                    return;
-	                }
-	                unbindListeners();
-	                if (handshake) {
-	                    handshake.close();
-	                }
-	                else {
-	                    transport.close();
-	                }
-	            },
-	            forceMinPriority: function (p) {
-	                if (connected) {
-	                    return;
-	                }
-	                if (_this.priority < p) {
-	                    if (handshake) {
-	                        handshake.close();
-	                    }
-	                    else {
-	                        transport.close();
-	                    }
-	                }
-	            }
-	        };
-	    };
-	    return TransportStrategy;
-	}());
-	exports.__esModule = true;
-	exports["default"] = TransportStrategy;
-	function failAttempt(error, callback) {
-	    util_1["default"].defer(function () {
-	        callback(error);
-	    });
-	    return {
-	        abort: function () { },
-	        forceMinPriority: function () { }
-	    };
-	}
-
-
-/***/ }),
-/* 56 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var Collections = __webpack_require__(9);
-	var util_1 = __webpack_require__(11);
-	var timers_1 = __webpack_require__(12);
-	var SequentialStrategy = (function () {
-	    function SequentialStrategy(strategies, options) {
-	        this.strategies = strategies;
-	        this.loop = Boolean(options.loop);
-	        this.failFast = Boolean(options.failFast);
-	        this.timeout = options.timeout;
-	        this.timeoutLimit = options.timeoutLimit;
-	    }
-	    SequentialStrategy.prototype.isSupported = function () {
-	        return Collections.any(this.strategies, util_1["default"].method("isSupported"));
-	    };
-	    SequentialStrategy.prototype.connect = function (minPriority, callback) {
-	        var _this = this;
-	        var strategies = this.strategies;
-	        var current = 0;
-	        var timeout = this.timeout;
-	        var runner = null;
-	        var tryNextStrategy = function (error, handshake) {
-	            if (handshake) {
-	                callback(null, handshake);
-	            }
-	            else {
-	                current = current + 1;
-	                if (_this.loop) {
-	                    current = current % strategies.length;
-	                }
-	                if (current < strategies.length) {
-	                    if (timeout) {
-	                        timeout = timeout * 2;
-	                        if (_this.timeoutLimit) {
-	                            timeout = Math.min(timeout, _this.timeoutLimit);
-	                        }
-	                    }
-	                    runner = _this.tryStrategy(strategies[current], minPriority, { timeout: timeout, failFast: _this.failFast }, tryNextStrategy);
-	                }
-	                else {
-	                    callback(true);
-	                }
-	            }
-	        };
-	        runner = this.tryStrategy(strategies[current], minPriority, { timeout: timeout, failFast: this.failFast }, tryNextStrategy);
-	        return {
-	            abort: function () {
-	                runner.abort();
-	            },
-	            forceMinPriority: function (p) {
-	                minPriority = p;
-	                if (runner) {
-	                    runner.forceMinPriority(p);
-	                }
-	            }
-	        };
-	    };
-	    SequentialStrategy.prototype.tryStrategy = function (strategy, minPriority, options, callback) {
-	        var timer = null;
-	        var runner = null;
-	        if (options.timeout > 0) {
-	            timer = new timers_1.OneOffTimer(options.timeout, function () {
-	                runner.abort();
-	                callback(true);
-	            });
-	        }
-	        runner = strategy.connect(minPriority, function (error, handshake) {
-	            if (error && timer && timer.isRunning() && !options.failFast) {
-	                return;
-	            }
-	            if (timer) {
-	                timer.ensureAborted();
-	            }
-	            callback(error, handshake);
-	        });
-	        return {
-	            abort: function () {
-	                if (timer) {
-	                    timer.ensureAborted();
-	                }
-	                runner.abort();
-	            },
-	            forceMinPriority: function (p) {
-	                runner.forceMinPriority(p);
-	            }
-	        };
-	    };
-	    return SequentialStrategy;
-	}());
-	exports.__esModule = true;
-	exports["default"] = SequentialStrategy;
-
-
-/***/ }),
-/* 57 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var Collections = __webpack_require__(9);
-	var util_1 = __webpack_require__(11);
-	var BestConnectedEverStrategy = (function () {
-	    function BestConnectedEverStrategy(strategies) {
-	        this.strategies = strategies;
-	    }
-	    BestConnectedEverStrategy.prototype.isSupported = function () {
-	        return Collections.any(this.strategies, util_1["default"].method("isSupported"));
-	    };
-	    BestConnectedEverStrategy.prototype.connect = function (minPriority, callback) {
-	        return connect(this.strategies, minPriority, function (i, runners) {
-	            return function (error, handshake) {
-	                runners[i].error = error;
-	                if (error) {
-	                    if (allRunnersFailed(runners)) {
-	                        callback(true);
-	                    }
-	                    return;
-	                }
-	                Collections.apply(runners, function (runner) {
-	                    runner.forceMinPriority(handshake.transport.priority);
-	                });
-	                callback(null, handshake);
-	            };
-	        });
-	    };
-	    return BestConnectedEverStrategy;
-	}());
-	exports.__esModule = true;
-	exports["default"] = BestConnectedEverStrategy;
-	function connect(strategies, minPriority, callbackBuilder) {
-	    var runners = Collections.map(strategies, function (strategy, i, _, rs) {
-	        return strategy.connect(minPriority, callbackBuilder(i, rs));
-	    });
-	    return {
-	        abort: function () {
-	            Collections.apply(runners, abortRunner);
-	        },
-	        forceMinPriority: function (p) {
-	            Collections.apply(runners, function (runner) {
-	                runner.forceMinPriority(p);
-	            });
-	        }
-	    };
-	}
-	function allRunnersFailed(runners) {
-	    return Collections.all(runners, function (runner) {
-	        return Boolean(runner.error);
-	    });
-	}
-	function abortRunner(runner) {
-	    if (!runner.error && !runner.aborted) {
-	        runner.abort();
-	        runner.aborted = true;
-	    }
-	}
-
-
-/***/ }),
-/* 58 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var util_1 = __webpack_require__(11);
-	var runtime_1 = __webpack_require__(2);
-	var sequential_strategy_1 = __webpack_require__(56);
-	var Collections = __webpack_require__(9);
-	var CachedStrategy = (function () {
-	    function CachedStrategy(strategy, transports, options) {
-	        this.strategy = strategy;
-	        this.transports = transports;
-	        this.ttl = options.ttl || 1800 * 1000;
-	        this.encrypted = options.encrypted;
-	        this.timeline = options.timeline;
-	    }
-	    CachedStrategy.prototype.isSupported = function () {
-	        return this.strategy.isSupported();
-	    };
-	    CachedStrategy.prototype.connect = function (minPriority, callback) {
-	        var encrypted = this.encrypted;
-	        var info = fetchTransportCache(encrypted);
-	        var strategies = [this.strategy];
-	        if (info && info.timestamp + this.ttl >= util_1["default"].now()) {
-	            var transport = this.transports[info.transport];
-	            if (transport) {
-	                this.timeline.info({
-	                    cached: true,
-	                    transport: info.transport,
-	                    latency: info.latency
-	                });
-	                strategies.push(new sequential_strategy_1["default"]([transport], {
-	                    timeout: info.latency * 2 + 1000,
-	                    failFast: true
-	                }));
-	            }
-	        }
-	        var startTimestamp = util_1["default"].now();
-	        var runner = strategies.pop().connect(minPriority, function cb(error, handshake) {
-	            if (error) {
-	                flushTransportCache(encrypted);
-	                if (strategies.length > 0) {
-	                    startTimestamp = util_1["default"].now();
-	                    runner = strategies.pop().connect(minPriority, cb);
-	                }
-	                else {
-	                    callback(error);
-	                }
-	            }
-	            else {
-	                storeTransportCache(encrypted, handshake.transport.name, util_1["default"].now() - startTimestamp);
-	                callback(null, handshake);
-	            }
-	        });
-	        return {
-	            abort: function () {
-	                runner.abort();
-	            },
-	            forceMinPriority: function (p) {
-	                minPriority = p;
-	                if (runner) {
-	                    runner.forceMinPriority(p);
-	                }
-	            }
-	        };
-	    };
-	    return CachedStrategy;
-	}());
-	exports.__esModule = true;
-	exports["default"] = CachedStrategy;
-	function getTransportCacheKey(encrypted) {
-	    return "pusherTransport" + (encrypted ? "Encrypted" : "Unencrypted");
-	}
-	function fetchTransportCache(encrypted) {
-	    var storage = runtime_1["default"].getLocalStorage();
-	    if (storage) {
-	        try {
-	            var serializedCache = storage[getTransportCacheKey(encrypted)];
-	            if (serializedCache) {
-	                return JSON.parse(serializedCache);
-	            }
-	        }
-	        catch (e) {
-	            flushTransportCache(encrypted);
-	        }
-	    }
-	    return null;
-	}
-	function storeTransportCache(encrypted, transport, latency) {
-	    var storage = runtime_1["default"].getLocalStorage();
-	    if (storage) {
-	        try {
-	            storage[getTransportCacheKey(encrypted)] = Collections.safeJSONStringify({
-	                timestamp: util_1["default"].now(),
-	                transport: transport,
-	                latency: latency
-	            });
-	        }
-	        catch (e) {
-	        }
-	    }
-	}
-	function flushTransportCache(encrypted) {
-	    var storage = runtime_1["default"].getLocalStorage();
-	    if (storage) {
-	        try {
-	            delete storage[getTransportCacheKey(encrypted)];
-	        }
-	        catch (e) {
-	        }
-	    }
-	}
-
-
-/***/ }),
-/* 59 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var timers_1 = __webpack_require__(12);
-	var DelayedStrategy = (function () {
-	    function DelayedStrategy(strategy, _a) {
-	        var number = _a.delay;
-	        this.strategy = strategy;
-	        this.options = { delay: number };
-	    }
-	    DelayedStrategy.prototype.isSupported = function () {
-	        return this.strategy.isSupported();
-	    };
-	    DelayedStrategy.prototype.connect = function (minPriority, callback) {
-	        var strategy = this.strategy;
-	        var runner;
-	        var timer = new timers_1.OneOffTimer(this.options.delay, function () {
-	            runner = strategy.connect(minPriority, callback);
-	        });
-	        return {
-	            abort: function () {
-	                timer.ensureAborted();
-	                if (runner) {
-	                    runner.abort();
-	                }
-	            },
-	            forceMinPriority: function (p) {
-	                minPriority = p;
-	                if (runner) {
-	                    runner.forceMinPriority(p);
-	                }
-	            }
-	        };
-	    };
-	    return DelayedStrategy;
-	}());
-	exports.__esModule = true;
-	exports["default"] = DelayedStrategy;
-
-
-/***/ }),
-/* 60 */
-/***/ (function(module, exports) {
-
-	"use strict";
-	var IfStrategy = (function () {
-	    function IfStrategy(test, trueBranch, falseBranch) {
-	        this.test = test;
-	        this.trueBranch = trueBranch;
-	        this.falseBranch = falseBranch;
-	    }
-	    IfStrategy.prototype.isSupported = function () {
-	        var branch = this.test() ? this.trueBranch : this.falseBranch;
-	        return branch.isSupported();
-	    };
-	    IfStrategy.prototype.connect = function (minPriority, callback) {
-	        var branch = this.test() ? this.trueBranch : this.falseBranch;
-	        return branch.connect(minPriority, callback);
-	    };
-	    return IfStrategy;
-	}());
-	exports.__esModule = true;
-	exports["default"] = IfStrategy;
-
-
-/***/ }),
-/* 61 */
-/***/ (function(module, exports) {
-
-	"use strict";
-	var FirstConnectedStrategy = (function () {
-	    function FirstConnectedStrategy(strategy) {
-	        this.strategy = strategy;
-	    }
-	    FirstConnectedStrategy.prototype.isSupported = function () {
-	        return this.strategy.isSupported();
-	    };
-	    FirstConnectedStrategy.prototype.connect = function (minPriority, callback) {
-	        var runner = this.strategy.connect(minPriority, function (error, handshake) {
-	            if (handshake) {
-	                runner.abort();
-	            }
-	            callback(error, handshake);
-	        });
-	        return runner;
-	    };
-	    return FirstConnectedStrategy;
-	}());
-	exports.__esModule = true;
-	exports["default"] = FirstConnectedStrategy;
-
-
-/***/ }),
-/* 62 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var defaults_1 = __webpack_require__(5);
-	exports.getGlobalConfig = function () {
-	    return {
-	        wsHost: defaults_1["default"].host,
-	        wsPort: defaults_1["default"].ws_port,
-	        wssPort: defaults_1["default"].wss_port,
-	        httpHost: defaults_1["default"].sockjs_host,
-	        httpPort: defaults_1["default"].sockjs_http_port,
-	        httpsPort: defaults_1["default"].sockjs_https_port,
-	        httpPath: defaults_1["default"].sockjs_path,
-	        statsHost: defaults_1["default"].stats_host,
-	        authEndpoint: defaults_1["default"].channel_auth_endpoint,
-	        authTransport: defaults_1["default"].channel_auth_transport,
-	        activity_timeout: defaults_1["default"].activity_timeout,
-	        pong_timeout: defaults_1["default"].pong_timeout,
-	        unavailable_timeout: defaults_1["default"].unavailable_timeout
-	    };
-	};
-	exports.getClusterConfig = function (clusterName) {
-	    return {
-	        wsHost: "ws-" + clusterName + ".pusher.com",
-	        httpHost: "sockjs-" + clusterName + ".pusher.com"
-	    };
-	};
-
-
-/***/ })
-/******/ ])
-});
-;
-},{}],31:[function(require,module,exports){
+},{}],24:[function(require,module,exports){
 /**
  * Satellizer 0.15.5
  * (c) 2016 Sahat Yalkabov 
@@ -96104,7 +85475,7 @@ return /******/ (function(modules) { // webpackBootstrap
 }));
 
 
-},{"buffer":21}],32:[function(require,module,exports){
+},{"buffer":19}],25:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -96137,7 +85508,7 @@ var defaultParams = {
 
 exports['default'] = defaultParams;
 module.exports = exports['default'];
-},{}],33:[function(require,module,exports){
+},{}],26:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -96273,7 +85644,7 @@ exports['default'] = {
   handleCancel: handleCancel
 };
 module.exports = exports['default'];
-},{"./handle-dom":34,"./handle-swal-dom":36,"./utils":39}],34:[function(require,module,exports){
+},{"./handle-dom":27,"./handle-swal-dom":29,"./utils":32}],27:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -96465,7 +85836,7 @@ exports.fadeIn = fadeIn;
 exports.fadeOut = fadeOut;
 exports.fireClick = fireClick;
 exports.stopEventPropagation = stopEventPropagation;
-},{}],35:[function(require,module,exports){
+},{}],28:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -96545,7 +85916,7 @@ var handleKeyDown = function handleKeyDown(event, params, modal) {
 
 exports['default'] = handleKeyDown;
 module.exports = exports['default'];
-},{"./handle-dom":34,"./handle-swal-dom":36}],36:[function(require,module,exports){
+},{"./handle-dom":27,"./handle-swal-dom":29}],29:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -96713,7 +86084,7 @@ exports.openModal = openModal;
 exports.resetInput = resetInput;
 exports.resetInputError = resetInputError;
 exports.fixVerticalPosition = fixVerticalPosition;
-},{"./default-params":32,"./handle-dom":34,"./injected-html":37,"./utils":39}],37:[function(require,module,exports){
+},{"./default-params":25,"./handle-dom":27,"./injected-html":30,"./utils":32}],30:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -96756,7 +86127,7 @@ var injectedHTML =
 
 exports["default"] = injectedHTML;
 module.exports = exports["default"];
-},{}],38:[function(require,module,exports){
+},{}],31:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -96982,7 +86353,7 @@ var setParameters = function setParameters(params) {
 
 exports['default'] = setParameters;
 module.exports = exports['default'];
-},{"./handle-dom":34,"./handle-swal-dom":36,"./utils":39}],39:[function(require,module,exports){
+},{"./handle-dom":27,"./handle-swal-dom":29,"./utils":32}],32:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -97056,7 +86427,7 @@ exports.hexToRgb = hexToRgb;
 exports.isIE8 = isIE8;
 exports.logStr = logStr;
 exports.colorLuminance = colorLuminance;
-},{}],40:[function(require,module,exports){
+},{}],33:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -97360,7 +86731,7 @@ if (typeof window !== 'undefined') {
   _extend$hexToRgb$isIE8$logStr$colorLuminance.logStr('SweetAlert is a frontend module!');
 }
 module.exports = exports['default'];
-},{"./modules/default-params":32,"./modules/handle-click":33,"./modules/handle-dom":34,"./modules/handle-key":35,"./modules/handle-swal-dom":36,"./modules/set-params":38,"./modules/utils":39}],41:[function(require,module,exports){
+},{"./modules/default-params":25,"./modules/handle-click":26,"./modules/handle-dom":27,"./modules/handle-key":28,"./modules/handle-swal-dom":29,"./modules/set-params":31,"./modules/utils":32}],34:[function(require,module,exports){
 /*!
  * ui-select
  * http://github.com/angular-ui/ui-select
@@ -99788,73 +89159,32 @@ $templateCache.put("selectize/match.tpl.html","<div ng-hide=\"$select.searchEnab
 $templateCache.put("selectize/no-choice.tpl.html","<div class=\"ui-select-no-choice selectize-dropdown\" ng-show=\"$select.items.length == 0\"><div class=\"selectize-dropdown-content\"><div data-selectable=\"\" ng-transclude=\"\"></div></div></div>");
 $templateCache.put("selectize/select-multiple.tpl.html","<div class=\"ui-select-container selectize-control multi plugin-remove_button\" ng-class=\"{\'open\': $select.open}\"><div class=\"selectize-input\" ng-class=\"{\'focus\': $select.open, \'disabled\': $select.disabled, \'selectize-focus\' : $select.focus}\" ng-click=\"$select.open && !$select.searchEnabled ? $select.toggle($event) : $select.activate()\"><div class=\"ui-select-match\"></div><input type=\"search\" autocomplete=\"off\" tabindex=\"-1\" class=\"ui-select-search\" ng-class=\"{\'ui-select-search-hidden\':!$select.searchEnabled}\" placeholder=\"{{$selectMultiple.getPlaceholder()}}\" ng-model=\"$select.search\" ng-disabled=\"$select.disabled\" aria-expanded=\"{{$select.open}}\" aria-label=\"{{ $select.baseTitle }}\" ondrop=\"return false;\"></div><div class=\"ui-select-choices\"></div><div class=\"ui-select-no-choice\"></div></div>");
 $templateCache.put("selectize/select.tpl.html","<div class=\"ui-select-container selectize-control single\" ng-class=\"{\'open\': $select.open}\"><div class=\"selectize-input\" ng-class=\"{\'focus\': $select.open, \'disabled\': $select.disabled, \'selectize-focus\' : $select.focus}\" ng-click=\"$select.open && !$select.searchEnabled ? $select.toggle($event) : $select.activate()\"><div class=\"ui-select-match\"></div><input type=\"search\" autocomplete=\"off\" tabindex=\"-1\" class=\"ui-select-search ui-select-toggle\" ng-class=\"{\'ui-select-search-hidden\':!$select.searchEnabled}\" ng-click=\"$select.toggle($event)\" placeholder=\"{{$select.placeholder}}\" ng-model=\"$select.search\" ng-hide=\"!$select.isEmpty() && !$select.open\" ng-disabled=\"$select.disabled\" aria-label=\"{{ $select.baseTitle }}\"></div><div class=\"ui-select-choices\"></div><div class=\"ui-select-no-choice\"></div></div>");}]);
-},{}],42:[function(require,module,exports){
+},{}],35:[function(require,module,exports){
 require('./dist/select.js');
 module.exports = 'ui.select';
 
-},{"./dist/select.js":41}],43:[function(require,module,exports){
+},{"./dist/select.js":34}],36:[function(require,module,exports){
 'use strict';
 
 window._ = require('lodash');
 window.$ = window.jQuery = require('jquery');
-// En caso de guardar archivo desde servidor (Ejemplo: PDF generado desde Laravel)
-// window.FileSaver = require('file-saver');
-
-// En caso de usar datatable
-// require( 'datatables.net' )( window, $ );
-// require( 'datatables.net-bs' )( window, $ );
-// require( 'datatables.net-buttons' )( window, $ );
-// require( 'datatables.net-buttons/js/buttons.colVis.js' )(window, $);
-// require( 'datatables.net-buttons/js/buttons.flash.js' )(window, $);
-// require( 'datatables.net-buttons/js/buttons.html5.js' )(window, $);
-// require( 'datatables.net-buttons/js/buttons.print.js' )(window, $);
-// require('./../../../../node_modules/angular-datatables/vendor/datatables-columnfilter/js/dataTables.columnFilter.js');
-
 require('./layout/nav.js');
 require('angular');
 require('bootstrap-sass');
 require('angular-acl');
 require('angular-animate');
-//require('angular-datatables');
-require('angular-messages');
 require('angular-loading-bar');
 require('angular-sanitize');
 require('angular-sweetalert');
 require('angular-ui-bootstrap');
 require('angular-ui-router');
 require('angular-toastr');
-
-// Subir archivo
-// window.Dropzone = require('dropzone');
-// require('ngdropzone');
 require('satellizer');
 require('sweetalert');
 require('ui-select');
-require('ng-file-upload');
-require('pusher-js');
-require('pusher-angular');
 
-angular.module('app', ['angular-loading-bar',
-// 'datatables',
-// 'datatables.bootstrap',
-// 'datatables.columnfilter',
-// 'datatables.buttons',
-'ngAnimate', 'ngMessages', 'ngSanitize', 'mm.acl', 'oitozero.ngSweetAlert', 'satellizer',
-//'thatisuday.dropzone',
-'toastr', 'ui.bootstrap', 'ui.router', 'ui.select', 'ngFileUpload', 'pusher-angular']).run(["$rootScope", "$log", "$auth", "$state", "toastr", function ($rootScope, $log, $auth, $state, toastr) {
-
-  // Configurar datatable
-  // DTDefaultOptions.setLanguage({
-  //   sUrl: "/i18n/datatable.json",
-  // });
-  // DTDefaultOptions.setLoadingTemplate('<div class="text-center"><i class="fa fa-refresh fa-spin fa-4x fa-fw"></i> <span class="sr-only">Cargando ...</span></div>');
-
-  // error manage
+angular.module('app', ['angular-loading-bar', 'ngAnimate', 'ngSanitize', 'mm.acl', 'oitozero.ngSweetAlert', 'satellizer', 'toastr', 'ui.bootstrap', 'ui.router', 'ui.select']).run(["$rootScope", "$log", "$auth", "$state", "toastr", function ($rootScope, $log, $auth, $state, toastr) {
   $rootScope.$on('$stateChangeError', function (event, toState, toParams, fromState, fromParams, error) {
-    if (error === 'Unauthorized') {
-      $state.go('app.profile');
-      return;
-    }
     if (error.status == 401) {
       $auth.removeToken();
       toastr.error(error.data.error, 'Estado!');
@@ -99864,18 +89194,11 @@ angular.module('app', ['angular-loading-bar',
   });
 }]).config(require('./routes.js')).config(["$authProvider", "uibPaginationConfig", function ($authProvider, uibPaginationConfig) {
   $authProvider.loginUrl = '/login';
-  $authProvider.signupUrl = '/register';
   uibPaginationConfig.previousText = 'Previo';
   uibPaginationConfig.nextText = 'Siguiente';
-}])
-// .config(function(dropzoneOpsProvider){
-//     dropzoneOpsProvider.setOptions({
-//         url : '/',
-//     });
-// })
-.constant('_find', require('lodash.find')).directive('toggleShortcut', require('./directives/toggleShortcut')).directive('smartMenu', require('./directives/smartMenu')).directive('stateBreadcrumbs', require('./directives/stateBreadcrumbs')).directive('ngEnter', require('./directives/NgEnter')).directive('notificationsToggle', require('./directives/notificationsToggle')).filter('isEmpty', require('./filters/IsEmpty')).controller('NavBarController', require('./app/NavBarController')).service('ApiService', require('./services/ApiService')).service('Confirm', require('./services/Confirm')).service('UserService', require('./users/UserService')).service('ArchivoCargaService', require('./archivo_cargas/ArchivoCargaService')).service('MensajeErrorArchivoCargaService', require('./archivo_cargas/MensajeErrorArchivoCargaService'));
+}]).directive('smartMenu', require('./directives/smartMenu')).directive('stateBreadcrumbs', require('./directives/stateBreadcrumbs')).directive('ngEnter', require('./directives/NgEnter')).filter('isEmpty', require('./filters/IsEmpty')).filter('propsFilter', require('./filters/propsFilter')).controller('NavBarController', require('./app/NavBarController')).service('ApiService', require('./services/ApiService')).service('Confirm', require('./services/Confirm')).service('UserService', require('./users/UserService')).service('RoleService', require('./roles/RoleService')).service('PermissionService', require('./permissions/PermissionService')).service('RegionService', require('./regions/RegionService')).service('ServicioSaludService', require('./serviciosSalud/ServicioSaludService')).service('ComunaService', require('./comunas/ComunaService')).service('EstablecimientoService', require('./establecimientos/EstablecimientoService'));
 
-},{"./app/NavBarController":44,"./archivo_cargas/ArchivoCargaService":46,"./archivo_cargas/MensajeErrorArchivoCargaService":49,"./directives/NgEnter":59,"./directives/notificationsToggle":60,"./directives/smartMenu":61,"./directives/stateBreadcrumbs":62,"./directives/toggleShortcut":63,"./filters/IsEmpty":64,"./layout/nav.js":66,"./routes.js":69,"./services/ApiService":70,"./services/Confirm":71,"./users/UserService":72,"angular":18,"angular-acl":1,"angular-animate":3,"angular-loading-bar":5,"angular-messages":7,"angular-sanitize":9,"angular-sweetalert":10,"angular-toastr":13,"angular-ui-bootstrap":15,"angular-ui-router":16,"bootstrap-sass":20,"jquery":24,"lodash":26,"lodash.find":25,"ng-file-upload":28,"pusher-angular":29,"pusher-js":30,"satellizer":31,"sweetalert":40,"ui-select":42}],44:[function(require,module,exports){
+},{"./app/NavBarController":37,"./comunas/ComunaService":42,"./directives/NgEnter":48,"./directives/smartMenu":49,"./directives/stateBreadcrumbs":50,"./establecimientos/EstablecimientoService":53,"./filters/IsEmpty":57,"./filters/propsFilter":58,"./layout/nav.js":60,"./permissions/PermissionService":61,"./regions/RegionService":65,"./roles/RoleService":71,"./routes.js":74,"./services/ApiService":75,"./services/Confirm":76,"./serviciosSalud/ServicioSaludService":80,"./users/UserService":87,"angular":16,"angular-acl":1,"angular-animate":3,"angular-loading-bar":5,"angular-sanitize":7,"angular-sweetalert":8,"angular-toastr":11,"angular-ui-bootstrap":13,"angular-ui-router":14,"bootstrap-sass":18,"jquery":22,"lodash":23,"satellizer":24,"sweetalert":33,"ui-select":35}],37:[function(require,module,exports){
 'use strict';
 
 module.exports = ["$scope", "$auth", function ($scope, $auth) {
@@ -99886,268 +89209,9 @@ module.exports = ["$scope", "$auth", function ($scope, $auth) {
   };
 }];
 
-},{}],45:[function(require,module,exports){
-module.exports = '<ui-view>\n    <div class="row">\n        <div class="col-xs-12 col-sm-7 col-md-7 col-lg-4">\n            <h1 class="page-title txt-color-blueDark">\n                <i class="fa-fw fa fa-home"></i>\n                Home\n            </h1>\n		</div>\n	</div>\n\n	<section class="">\n		<div class="row">\n			<article class="col-xs-12 col-sm-12 col-md-12 col-lg-12">\n\n                <div class="jarviswidget" ng-repeat="data in vm.data">\n                    <header>\n                        <span class="widget-icon"> <i class="fa fa-map-marker"></i> </span>\n                        <h2>{{ data.punto }}</h2>\n                    </header>\n                    <div>\n                        <div class="jarviswidget-editbox">\n                            <input class="form-control" type="text">\n                        </div>\n                        <div class="widget-body">\n                            Bienvenido!\n                        </div>\n                    </div>\n                </div>\n\n			</article>\n		</div>\n		<div class="row">\n			<div class="col-sm-12">\n			</div>\n		</div>\n	</section>\n</ui-view>\n';
-},{}],46:[function(require,module,exports){
-'use strict';
-
-module.exports = ["ApiService", "$http", function (ApiService, $http) {
-  'ngInject';
-
-  angular.extend(this, ApiService);
-  this.resource = 'archivoCargas';
-
-  this.getUploadRoute = function () {
-    return 'archivoCargas';
-  };
-
-  this.fixDatos = function () {
-    return $http.get('/api/fixerDatos');
-  };
-}];
-
-},{}],47:[function(require,module,exports){
-'use strict';
-
-module.exports = ["tipos_archivo", "$uibModalInstance", "ArchivoCargaService", "Upload", "$state", "$stateParams", "toastr", function (tipos_archivo, $uibModalInstance, ArchivoCargaService, Upload, $state, $stateParams, toastr) {
-  'ngInject';
-
-  var vm = this;
-
-  vm.errors = {};
-  vm.formIsSubmit = false;
-  vm.action = 'Cargar';
-  vm.data = {
-    tipo_archivo: '',
-    archivo: '',
-    file: null,
-    mes: '',
-    anho: ''
-  };
-  vm.tipos_archivo = tipos_archivo;
-
-  vm.hasError = function (property) {
-    return vm.errors.hasOwnProperty(property);
-  };
-
-  vm.submitForm = function () {
-    vm.formIsSubmit = true;
-    console.log('data', vm.data);
-    Upload.upload({
-      url: '/api/' + ArchivoCargaService.getUploadRoute(),
-      data: vm.data,
-      method: 'POST'
-    }).then(function (response) {
-      toastr.success(response.data.message, 'Estado!');
-      $state.go('app.csvs', {}, { reload: true });
-      $uibModalInstance.close('closed');
-    }).catch(function (errors) {
-      vm.errors = errors.data;
-    }).finally(function () {
-      vm.formIsSubmit = false;
-    });
-  };
-
-  vm.cancelar = function () {
-    $uibModalInstance.dismiss('cancel');
-  };
-}];
-
-},{}],48:[function(require,module,exports){
-'use strict';
-
-module.exports = ["archivos", "toastr", "Confirm", "_find", "$window", "$state", "$stateParams", "$uibModal", "ArchivoCargaService", "$rootScope", function (archivos, toastr, Confirm, _find, $window, $state, $stateParams, $uibModal, ArchivoCargaService, $rootScope) {
-  'ngInject';
-
-  var vm = this;
-
-  console.log('vm', vm);
-  vm.archivos = archivos.data;
-  vm.totalItems = archivos.total;
-  vm.itemsPerPage = archivos.per_page;
-  vm.search = $stateParams;
-  vm.search.page = archivos.current_page;
-  vm.reload = false;
-  vm.formato = {
-    fecha_asociada: 'MM-yyyy',
-    created_at: 'dd-MM-YYYY'
-  };
-
-  vm.tipos_archivo = [{ id: undefined, nombre: 'Todos' }, { id: 'datos', nombre: 'Datos' }];
-
-  vm.estados = [{ id: undefined, nombre: 'Todos', labelClass: 'label-default' }, { id: 'En cola', nombre: 'En cola', labelClass: 'label-info' }, { id: 'Procesando', nombre: 'Procesando', labelClass: 'label-warning' }, { id: 'Error', nombre: 'Error', labelClass: 'label-danger' }, { id: 'Completado', nombre: 'Completado', labelClass: 'label-success' }];
-
-  vm.archivos.forEach(function (item, index, array) {
-    array[index].tipo_archivo = _find(vm.tipos_archivo, { id: array[index].tipo_archivo }).nombre;
-  });
-
-  vm.filter = function () {
-    $state.go('.', vm.search, { reload: true });
-    vm.reload = true;
-  };
-
-  vm.modalCrearArchivo = function () {
-    $uibModal.open({
-      template: require('./views/form.html'),
-      controller: require('./CreateController'),
-      controllerAs: 'vm',
-      resolve: {
-        tipos_archivo: function tipos_archivo() {
-          var tipos = vm.tipos_archivo.slice();
-          tipos.splice(0, 1);
-          return tipos;
-        }
-      }
-    }).result.then(function (data) {
-      vm.filter();
-    }, function () {
-      return;
-    });
-  };
-
-  vm.descargar = function (filename) {
-    $window.open(filename, '_blank');
-  };
-
-  vm.labelClass = function (estado) {
-    return _find(vm.estados, { id: estado }).labelClass;
-  };
-
-  vm.modalVerDetalles = function (id, index) {
-    ArchivoCargaService.getResource(id).then(function (data) {
-      var archivoCargado = data.data;
-      vm.archivos[index] = archivoCargado;
-
-      $uibModal.open({
-        template: require('./views/show.html'),
-        controller: require('./ShowController'),
-        controllerAs: 'vm',
-        resolve: {
-          archivo: archivoCargado
-        }
-      });
-    });
-  };
-
-  vm.actualizarRegistro = function (data) {
-    vm.archivos.forEach(function (item, index, array) {
-      var archivo = data.archivo;
-      if (array[index].id == archivo.id) {
-        archivo.tipo_archivo = _find(vm.tipos_archivo, { id: archivo.tipo_archivo }).nombre;
-        vm.archivos[index] = archivo;
-        return;
-      }
-    });
-  };
-
-  vm.formatoFechaAsociada = function () {
-    if (!vm.search.fechaAsociada) {
-      vm.filter();
-      return;
-    }
-    var fecha = vm.search.fechaAsociada.split('-');
-    var fParseada = Date.parse(fecha[1] + '-' + fecha[0]);
-    if (isNaN(fParseada) || fecha.length != 2) {
-      vm.toastrErrorFecha();
-      vm.search.fechaAsociada = null;
-      return;
-    }
-    vm.filter();
-  };
-
-  vm.limpiar = function () {
-    ArchivoCargaService.fixDatos().then(function (data) {
-      console.log('data', data);
-    });
-  };
-
-  vm.toastrErrorFecha = function () {
-    toastr.error('Error de formato en la fecha a buscar (formato en ' + vm.formato.fecha_asociada + ' o dejar vacío)', 'Error!');
-  };
-
-  $rootScope.pusherChannel.bind('carga-archivos', vm.actualizarRegistro);
-}];
-
-},{"./CreateController":47,"./ShowController":50,"./views/form.html":51,"./views/show.html":53}],49:[function(require,module,exports){
-'use strict';
-
-module.exports = ["ApiService", "$http", function (ApiService, $http) {
-  'ngInject';
-
-  angular.extend(this, ApiService);
-  this.resource = 'archivoCargasActual/';
-
-  this.setResource = function (idArchivo) {
-    this.resource = this.resource + idArchivo;
-  };
-
-  this.getErrores = function (params) {
-    // return $http.get(this.resource + '/errores?page=' + params.page);
-    return $http.get(this.resource + '/errores');
-  };
-}];
-
-},{}],50:[function(require,module,exports){
-'use strict';
-
-module.exports = ["archivo", "toastr", "Confirm", "$state", "$stateParams", "_find", "$uibModalInstance", "MensajeErrorArchivoCargaService", function (archivo, toastr, Confirm, $state, $stateParams, _find, $uibModalInstance, MensajeErrorArchivoCargaService) {
-  'ngInject';
-
-  var vm = this;
-  MensajeErrorArchivoCargaService.setResource(archivo.id);
-
-  vm.archivo = archivo;
-  vm.reloadErrors = true;
-
-  /*
-  // deberia indicar errores
-  vm.errores.totalItems = vm.errores.total;
-  vm.errores.itemsPerPage = vm.errores.per_page;
-  vm.errores.search = $stateParams;
-  vm.errores.search.page = vm.errores.current_page;
-  vm.errores.reloadErrors = false;
-  */
-
-  vm.tipos_archivo = [{ id: undefined, nombre: 'Todos' }, { id: 'dotacion_efectiva', nombre: 'Dotación Efectiva' }, { id: 'ausentismo_global', nombre: 'Ausentismo Global' }, { id: 'ausentismo_licencias', nombre: 'Ausentismo Licencias Médicas' }, { id: 'honorarios', nombre: 'Honorarios' }, { id: 'horas_extras', nombre: 'Horas Extras' }];
-
-  vm.archivo.tipo_archivo = _find(vm.tipos_archivo, { id: vm.archivo.tipo_archivo }).nombre;
-
-  vm.cerrar = function () {
-    $uibModalInstance.close('close');
-  };
-
-  vm.labelClass = function (estado) {
-    if (estado === 'En cola') {
-      return 'label-info';
-    } else if (estado === 'Procesando') {
-      return 'label-warning';
-    } else if (estado === 'Error') {
-      return 'label-danger';
-    } else if (estado === 'Completado') {
-      return 'label-success';
-    }
-    return 'label-default';
-  };
-
-  vm.getErrores = function () {
-    if (vm.archivo.cantidadErrores > 0) {
-      MensajeErrorArchivoCargaService.getErrores({ page: 1 }).then(function (data) {
-        vm.errores = data.data;
-        vm.reloadErrors = false;
-      });
-    }
-  };
-
-  vm.getErrores();
-}];
-
-},{}],51:[function(require,module,exports){
-module.exports = '<!--Inicio ArchivoModal-->\n<div class="modal-body">\n\n<div class=\'row\'>\n    <div class="col-sm-12 col-md-12 col-lg-12">\n        <div class="jarviswidget jarviswidget-color-bluegob" id="archivocarga-form">\n            <header>\n                <span class="widget-icon"> <i class="fa fa-plus"></i> </span>\n                <h2>{{ vm.action }} Archivo al Sistema</h2>\n            </header>\n\n            <div>\n                <div class="widget-body no-padding all-background">\n                    <br>\n                    <form class="form-horizontal" role="form" method="POST" novalidate>\n\n                        <div class="form-group" ng-class="{\'has-error\': vm.hasError(\'tipo_archivo\')}">\n                            <label class="col-md-4 control-label">Tipo Archivo</label>\n\n                            <div class="col-md-6">\n                                <ui-select ng-model="vm.data.tipo_archivo">\n                                    <ui-select-match placeholder="Tipo de Archivo">\n                                        {{$select.selected.nombre}}\n                                    </ui-select-match>\n                                    <ui-select-choices repeat="tipo.id as tipo in vm.tipos_archivo | filter: $select.search">\n                                        <span ng-bind-html="tipo.nombre | highlight: $select.search"></span>\n                                    </ui-select-choices>\n                                </ui-select>\n\n                                <span ng-if="vm.hasError(\'tipo_archivo\')" class="help-block">\n                                    <strong>{{ vm.errors.tipo_archivo[0] }}</strong>\n                                </span>\n                            </div>\n                        </div>\n\n                        <div class="form-group" ng-class="{\'has-error\': vm.hasError(\'mes\') || vm.hasError(\'anho\')}">\n                            <label class="col-md-4 control-label">Fecha Asociada</label>\n                            <div class="col-md-6">\n                                <div class="row">\n                                    <div class="col-md-6">\n                                        <input class="form-control" type="number" placeholder="Mes" min="1" max="12" ng-model="vm.data.mes">\n                                    </div>\n                                    <div class="col-md-6">\n                                        <input class="form-control" type="number" placeholder="Año" min="1" max="9999" ng-model="vm.data.anho">\n                                    </div>\n                                </div>\n                                <div class="row">\n                                    <div class="col-md-12">\n                                        <span ng-if="vm.hasError(\'mes\') || vm.hasError(\'anho\')" class="help-block">\n                                            <div ng-if="vm.hasError(\'mes\')">\n                                                <strong>{{ vm.errors.mes[0] }}</strong>\n                                            </div>\n                                            <div ng-if="vm.hasError(\'anho\')">\n                                                <strong>{{ vm.errors.anho[0] }}</strong>\n                                            </div>\n                                        </span>\n                                    </div>\n                                </div>\n                            </div>\n                        </div>\n\n                        <div class="form-group" ng-class="{\'has-error\': vm.hasError(\'file\')}">\n                            <label class="col-md-4 control-label">Archivo</label>\n\n                            <div class="col-md-6">\n                                <input type="file" ngf-select class="form-control" ng-model="vm.data.file" name="file" ngf-model-invalid="errorFile" accept=".csv">\n\n                                <span ng-if="vm.hasError(\'file\')" class="help-block">\n                                    <strong>{{ vm.errors.file[0] }}</strong>\n                                </span>\n                            </div>\n                        </div>\n\n                        <div class="form-group">\n                            <div class="col-md-6 col-md-offset-4">\n                                <button ng-class="{\'disabled\': vm.formIsSubmit }" type="button" class="btn btn-default" ng-click="vm.cancelar()">Cancelar</button>\n                                <button ng-class="{\'disabled\': vm.formIsSubmit }" ng-click="vm.submitForm()" class="btn btn-primary" data-dismiss="modal">\n                                    <i ng-class="{\'fa-user\': !vm.formIsSubmit, \'fa-spinner fa-spin\': vm.formIsSubmit }" class="fa fa-btn "></i> {{ vm.action }}\n                                </button>\n                            </div>\n                        </div>\n                    </form>\n                </div>\n            </div>\n        </div>\n    </div>\n</div>\n\n</div>\n\n<!--Fin modal-->\n';
-},{}],52:[function(require,module,exports){
-module.exports = '<ui-view>\n    <div class=\'row\'>\n        <div class="col-sm-12 col-md-12 col-lg-12">\n            <div class=\'pull-right\'>\n                <button class="btn btn-primary" ng-click="vm.modalCrearArchivo()">Agregar Archivo CSV</button>\n            </div>\n        </div>\n    </div>\n\n    <br>\n\n    <div class=\'row\'>\n        <article class="col-sm-12 col-md-12 col-lg-12">\n            <div class="jarviswidget jarviswidget-color-bluegob" id="archivo-cargas-table">\n                <header>\n                    <span class="widget-icon"> <i class="fa fa-table"></i> </span>\n                    <h2>Listado Archivos CSV</h2>\n                </header>\n\n                <div>\n                    <div class="widget-body no-padding">\n                        <table class=\'table table-bordered\'>\n                            <thead>\n                                <tr>\n                                    <th>Tipo Archivo</th>\n                                    <th>Fecha Asociada</th>\n                                    <th>Estado Carga</th>\n                                    <th>Registros Leidos</th>\n                                    <th>Creador</th>\n                                    <th>Fecha Carga</th>\n                                    <th class=\'action-column\'>Acciones</th>\n                                </tr>\n                            </thead>\n                            <tbody>\n                                <tr>\n                                    <td>\n                                        <ui-select ng-model="vm.search.tipo" on-select="vm.filter()">\n                                            <ui-select-match placeholder="Tipo de Archivo">\n                                                {{$select.selected.nombre}}\n                                            </ui-select-match>\n                                            <ui-select-choices repeat="tipo.id as tipo in vm.tipos_archivo | filter: $select.search">\n                                                <span ng-bind-html="tipo.nombre | highlight: $select.search"></span>\n                                            </ui-select-choices>\n                                        </ui-select>\n                                    </td>\n                                    <td>\n                                         <input type="text" class="form-control" placeholder="{{vm.formato.fecha_asociada}}" ng-model="vm.search.fechaAsociada" ng-blur="vm.formatoFechaAsociada()" ng-enter="vm.formatoFechaAsociada()"/>\n                                    </td>\n                                    <td>\n                                        <ui-select ng-model="vm.search.estado" on-select="vm.filter()">\n                                            <ui-select-match placeholder="Estado de Carga">\n                                                {{$select.selected.nombre}}\n                                            </ui-select-match>\n                                            <ui-select-choices repeat="estado.id as estado in vm.estados | filter: $select.search">\n                                                <span ng-bind-html="estado.nombre | highlight: $select.search"></span>\n                                            </ui-select-choices>\n                                        </ui-select>\n                                    </td>\n                                    <td></td>\n                                    <td><input ng-model="vm.search.usuario" ng-blur="vm.filter()" ng-enter="vm.filter()" type="text" class="form-control" placeholder="Usuario"></td>\n                                    <td></td>\n                                    <td></td>\n                                </tr>\n                                <tr ng-repeat="archivo in vm.archivos" ng-class="{\'fila-destacada\': archivo.es_registro_valido}">\n                                    <td>{{ archivo.tipo_archivo }}</td>\n                                    <td>{{ archivo.fecha_asociada | date: vm.formato.fecha_asociada }}</td>\n                                    <td><span class="label" ng-class="vm.labelClass(archivo.estado_carga)">{{archivo.estado_carga}}</span></td>\n                                    <td>{{ archivo.registros_leidos }}</td>\n                                    <td>{{ archivo.user.name }}</td>\n                                    <td>{{ archivo.created_at | date: vm.formato.created_at }}</td>\n                                    <td>\n                                        <a ng-if="(archivo.archivo)" ng-click="vm.descargar(archivo.archivo)" class="btn btn-info btn-xs"><i class="fa fa-download"></i></a>\n                                        <a ng-click="vm.modalVerDetalles(archivo.id, $index)" class="btn btn-warning btn-xs"><i class="fa fa-eye"></i></a>\n                                    </td>\n                                </tr>\n                            </tbody>\n                        </table>\n\n                        <div ng-if=\'vm.reload\' class=\'text-center\'>\n                            <i class="fa fa-2x fa-spinner fa-spin"></i>\n                        </div>\n\n                        <div ng-hide="vm.reload" ng-if="vm.archivos | isEmpty" class=\'text-center\'>\n                            Sin resultados\n                        </div>\n\n                        <div ng-hide="vm.reload" ng-if="! (vm.archivos | isEmpty)" class=\'text-center\'>\n                            <ul uib-pagination items-per-page="vm.itemsPerPage" total-items="vm.totalItems" ng-model="vm.search.page" ng-change="vm.filter()"></ul>\n                        </div>\n\n                    </div>\n                </div>\n            </div>\n        </article>\n    </div>\n</ui-view>\n';
-},{}],53:[function(require,module,exports){
-module.exports = '<!--Inicio ArchivoModal-->\n<div class="modal-body">\n\n<div class=\'row\'>\n    <div class="col-sm-12 col-md-12 col-lg-12">\n        <div class="jarviswidget jarviswidget-color-bluegob" id="archivocarga-show">\n            <header>\n                <span class="widget-icon"> <i class="fa fa-eye"></i></span>\n                <h2>Detalles de carga de archivo</h2>\n            </header>\n\n            <div>\n                <div class="widget-body no-padding all-background">\n                  <table class="table table-bordered">\n                    <tr><td>Tipo archivo</td><td>{{vm.archivo.tipo_archivo}}</td></tr>\n                    <tr><td>Creador</td><td>{{vm.archivo.user.name}}</td></tr>\n                    <tr><td>Fecha asociada</td><td>{{vm.archivo.fecha_asociada}}</td></tr>\n                    <tr><td>Estado carga</td><td><span class="label" ng-class="vm.labelClass(vm.archivo.estado_carga)">{{vm.archivo.estado_carga}}</span></td></tr>\n                    <tr><td>Mensaje carga</td><td>{{vm.archivo.mensaje}}</td></tr>\n                    <tr><td>Activo</td><td>{{vm.archivo.es_registro_valido ? \'Si\' : \'No\'}}</td></tr>\n                    <tr><td>Registros Leidos</td><td>{{vm.archivo.registros_leidos}}</td></tr>\n                    <tr ng-if="(vm.archivo.cantidadErrores > 0)">\n                        <td>Registros con errores</td>\n                        <td>{{vm.archivo.cantidadErrores}}</td>\n                    </tr>\n                    <tr><td>Fecha creación</td><td>{{vm.archivo.created_at}}</td></tr>\n                  </table>\n                </div>\n\n            </div>\n        </div>\n\n        <div class="jarviswidget jarviswidget-color-bluegob" id="archivocarga-errores-show" ng-if="(vm.archivo.cantidadErrores > 0)">\n            <header>\n                <span class="widget-icon"> <i class="fa fa-exclamation-triangle"></i></span>\n                <h2>Errores encontrados</h2>\n            </header>\n            <div>\n            <div class="widget-body no-padding all-background">\n                <table ng-hide="vm.reloadErrors" class="table table-bordered" ng-repeat="error in vm.errores">\n                    <tr ng-repeat="mensaje in error.mensajes">\n                        <td><span style="font-weight: bold">Línea {{error.linea}}:</span> {{mensaje.mensaje}}</td>\n                    </tr>\n                </table>\n                <div ng-if=\'vm.reloadErrors\' class=\'text-center\'>\n                    <i class="fa fa-2x fa-spinner fa-spin"></i>\n                </div>\n            </div>\n            </div>\n        </div>\n    </div>\n\n    <div class="col-sm-12 col-md-12 col-lg-12">\n        <a ng-click="vm.cerrar()" class="btn btn-primary">Cerrar</a>\n    </div>\n\n</div>\n\n</div>\n<!--Fin modal-->\n';
-},{}],54:[function(require,module,exports){
+},{}],38:[function(require,module,exports){
+module.exports = '<ui-view>\n    <div class="row">\n        <div class="col-xs-12 col-sm-7 col-md-7 col-lg-4">\n            <h1 class="page-title txt-color-blueDark">\n                <i class="fa-fw fa fa-home"></i>\n                Inicio\n            </h1>\n		</div>\n	</div>\n\n	<section id="widget-grid" class="">\n		<div class="row">\n			<article class="col-xs-12 col-sm-12 col-md-12 col-lg-12">\n				<div class="jarviswidget" id="wid-id-0">\n					<header>\n						<span class="widget-icon"> <i class="fa fa-cogs"></i> </span>\n						<h2>Bienvenido</h2>\n					</header>\n					<div>\n						<div class="jarviswidget-editbox">\n							<input class="form-control" type="text">\n						</div>\n						<div class="widget-body">\n\n							<div>\n								<h1>🚚 Sistema base para realizar un SPA utilizando Angular 1.5</h1>\n\n								<ul>\n									<li>Super admin y admin para demostrar el uso de angular acl. El admin se limita a solo visualizar aspectos de administración</li>\n									<li>Uso de api_token simple (Se puede reemplazar usando jwt-token)</li>\n									<li>Mantenedores bases de territorialidad: region, servicio de salud, comuna y establecimiento</li>\n								</ul>\n							</div>\n\n						</div>\n					</div>\n				</div>\n			</article>\n		</div>\n		<div class="row">\n			<div class="col-sm-12">\n			</div>\n		</div>\n	</section>\n</ui-view>\n';
+},{}],39:[function(require,module,exports){
 'use strict';
 
 module.exports = ["$auth", "$http", "$state", "toastr", function ($auth, $http, $state, toastr) {
@@ -100171,7 +89235,7 @@ module.exports = ["$auth", "$http", "$state", "toastr", function ($auth, $http, 
   };
 }];
 
-},{}],55:[function(require,module,exports){
+},{}],40:[function(require,module,exports){
 'use strict';
 
 module.exports = ["$state", "$auth", "toastr", "AclService", function ($state, $auth, toastr, AclService) {
@@ -100182,43 +89246,128 @@ module.exports = ["$state", "$auth", "toastr", "AclService", function ($state, $
 	}
 
 	$auth.logout().then(function () {
-		window.currentUser = null;
 		AclService.flushRoles();
 		toastr.info('Ha sido cerrada tu sesión');
 		$state.go('login');
 	});
 }];
 
-},{}],56:[function(require,module,exports){
+},{}],41:[function(require,module,exports){
+module.exports = '<ui-view>\n    <section class="" style="padding-top: 100px;">\n        <div class="row">\n            <article class="col-md-4 col-md-offset-4">\n                <div class="jarviswidget jarviswidget-color-darken" id="wid-id-0">\n                    <header>\n                        <span class="widget-icon"> <i class="fa fa-key"></i> </span>\n                        <h2>Login</h2>\n                    </header>\n                    <div>\n                        <div class="jarviswidget-editbox">\n                            <input class="form-control" type="text">\n                        </div>\n                        <div class="widget-body no-padding">\n\n\n                            <form role="form" method="POST" novalidate class="smart-form client-form">\n\n                                <fieldset>\n\n                                    <section>\n                                        <label class="label control-label" for="email">E-mail</label>\n                                        <label class="input" ng-class="{\'state-error\': vm.hasError(\'email\')}"> <i class="icon-append fa fa-user"></i>\n                                            <input ng-model="vm.user.email" id="email" type="email" name="email">\n                                            <b class="tooltip tooltip-top-right"><i class="fa fa-user txt-color-teal"></i> Ingresar correo/usuario</b>\n                                        </label>\n                                        <em ng-if="vm.hasError(\'email\')" class="help-block">\n                                            {{ vm.errors.email[0] }}\n                                        </em>\n                                    </section>\n\n                                    <section>\n                                        <label class="label control-label">Password</label>\n                                        <label class="input" ng-class="{\'state-error\': vm.hasError(\'email\')}"> <i class="icon-append fa fa-lock"></i>\n                                            <input ng-model="vm.user.password" id="password" type="password" name="password">\n                                            <b class="tooltip tooltip-top-right"><i class="fa fa-lock txt-color-teal"></i> Ingresa tu password</b>\n                                        </label>\n                                        <em ng-if="vm.hasError(\'password\')" class="help-block">\n                                            {{ vm.errors.password[0] }}\n                                        </em>\n                                    </section>\n\n                                </fieldset>\n                                <footer>\n                                    <button ng-click="vm.login()" type="submit" class="btn btn-primary">\n                                        Enviar\n                                    </button>\n                                </footer>\n                            </form>\n                        </div>\n                    </div>\n                </div>\n            </article>\n        </div>\n        <div class="row">\n            <div class="col-sm-12">\n            </div>\n        </div>\n    </section>\n</ui-view>\n';
+},{}],42:[function(require,module,exports){
 'use strict';
 
-module.exports = ["$auth", "$http", "$state", "toastr", function ($auth, $http, $state, toastr) {
+module.exports = ["ApiService", "$http", function (ApiService, $http) {
+  'ngInject';
+
+  angular.extend(this, ApiService);
+  this.resource = 'comunas';
+}];
+
+},{}],43:[function(require,module,exports){
+'use strict';
+
+module.exports = ["ComunaService", "servicios", "$state", "toastr", function (ComunaService, servicios, $state, toastr) {
   'ngInject';
 
   var vm = this;
-  vm.user = {};
+  vm.action = 'Crear';
   vm.errors = {};
+  vm.formIsSubmit = false;
+  vm.servicios = servicios;
+  vm.data = {};
 
-  vm.submit = function () {
-    $auth.signup(vm.user).then(function (response) {
-      $auth.setToken(response);
-      $state.go('app.home');
-      toastr.info('Se ha creado tu cuenta exitosamente y se ha iniciado sesión');
-    }).catch(function (response) {
-      vm.errors = response.data;
+  this.submitForm = function () {
+    vm.formIsSubmit = true;
+
+    ComunaService.createResource(vm.data).then(function (data) {
+      toastr.success(data.data.message, 'Estado!');
+      $state.go('app.comunas.index', {}, { reload: true });
+    }).catch(function (errors) {
+      vm.errors = errors.data;
+    }).finally(function () {
+      vm.formIsSubmit = false;
     });
   };
 
   this.hasError = function (property) {
-    return vm.errors.hasOwnProperty(property) ? true : false;
+    return vm.errors.hasOwnProperty(property);
   };
 }];
 
-},{}],57:[function(require,module,exports){
-module.exports = '<ui-view>\n    <section class="" style="padding-top: 100px;">\n        <div class="row">\n            <article class="col-md-4 col-md-offset-4">\n\n                <div class="jarviswidget" id="wid-id-0">\n\n					<form class="animated flipInY">\n						<div class="logo" style="padding: 0px 25px 10px 25px; display: block;">\n							<h1 class="semi-bold"><img src="img/logo-o.png" style="width: 100%; margin-top: -4px; margin-right: -2px;" alt=""> </h1>\n						</div>\n					</form>\n\n                    <header>\n                        <span class="widget-icon"> <i class="fa fa-key"></i> </span>\n                        <h2>Login</h2>\n                    </header>\n\n                    <div>\n                        <div class="jarviswidget-editbox">\n                            <input class="form-control" type="text">\n                        </div>\n                        <div class="widget-body no-padding">\n\n\n                            <form role="form" method="POST" novalidate class="smart-form client-form">\n\n                                <fieldset>\n\n                                    <section>\n                                        <label class="label control-label" for="email">E-mail</label>\n                                        <label class="input" ng-class="{\'state-error\': vm.hasError(\'email\')}"> <i class="icon-append fa fa-user"></i>\n                                            <input ng-model="vm.user.email" id="email" type="email" name="email">\n                                            <b class="tooltip tooltip-top-right"><i class="fa fa-user txt-color-teal"></i> Ingresar correo/usuario</b>\n                                        </label>\n                                        <em ng-if="vm.hasError(\'email\')" class="help-block">\n                                            {{ vm.errors.email[0] }}\n                                        </em>\n                                    </section>\n\n                                    <section>\n                                        <label class="label control-label">Password</label>\n                                        <label class="input" ng-class="{\'state-error\': vm.hasError(\'email\')}"> <i class="icon-append fa fa-lock"></i>\n                                            <input ng-model="vm.user.password" id="password" type="password" name="password">\n                                            <b class="tooltip tooltip-top-right"><i class="fa fa-lock txt-color-teal"></i> Ingresa tu password</b>\n                                        </label>\n                                        <em ng-if="vm.hasError(\'password\')" class="help-block">\n                                            {{ vm.errors.password[0] }}\n                                        </em>\n\n                                        <div class="note">\n                                            <a href="/password/reset">Olvidó password?</a>\n                                        </div>\n                                    </section>\n\n                                </fieldset>\n                                <footer>\n                                    <button ng-click="vm.login()" type="submit" class="btn btn-primary">\n                                        Enviar\n                                    </button>\n                                </footer>\n                            </form>\n                        </div>\n                    </div>\n                </div>\n            </article>\n        </div>\n    </section>\n</ui-view>\n';
-},{}],58:[function(require,module,exports){
-module.exports = '<ui-view>\n    <div class="container">\n        <div class="row">\n            <div class="col-md-8 col-md-offset-2">\n                <div class="panel panel-default">\n                    <div class="panel-heading">Registrar</div>\n                    <div class="panel-body">\n                        <form class="form-horizontal" role="form" novalidate>\n\n                            <div class="form-group" ng-class="{\'has-error\': vm.hasError(\'name\')}">\n                                <label for="name" class="col-md-4 control-label">Name</label>\n                                <div class="col-md-6">\n                                    <input ng-model="vm.user.name" type="text" class="form-control" name="name">\n                                    <span ng-if="vm.hasError(\'name\')" class="help-block">\n                                        <strong>{{ vm.errors.name[0] }}</strong>\n                                    </span>\n                                </div>\n                            </div>\n\n                            <div class="form-group" ng-class="{\'has-error\': vm.hasError(\'email\')}">\n                                <label for="email" class="col-md-4 control-label">E-Mail Address</label>\n                                <div class="col-md-6">\n                                    <input ng-model="vm.user.email" id="email" type="email" class="form-control" name="email">\n                                    <span ng-if="vm.hasError(\'email\')" class="help-block">\n                                        <strong>{{ vm.errors.email[0] }}</strong>\n                                    </span>\n                                </div>\n                            </div>\n\n                            <div class="form-group" ng-class="{\'has-error\': vm.hasError(\'password\')}">\n                                <label for="password" class="col-md-4 control-label">Password</label>\n                                <div class="col-md-6">\n                                    <input ng-model="vm.user.password" type="password" class="form-control" name="password">\n                                    <span ng-if="vm.hasError(\'password\')" class="help-block">\n                                        <strong>{{ vm.errors.password[0] }}</strong>\n                                    </span>\n                                </div>\n                            </div>\n\n                            <div class="form-group" ng-class="{\'has-error\': vm.hasError(\'password_confirmation\')}">\n                                <label for="password" class="col-md-4 control-label">Confirma Password</label>\n                                <div class="col-md-6">\n                                    <input ng-model="vm.user.password_confirmation" type="password" class="form-control" name="password">\n                                    <span ng-if="vm.hasError(\'password_confirmation\')" class="help-block">\n                                        <strong>{{ vm.errors.password_confirmation[0] }}</strong>\n                                    </span>\n                                </div>\n                            </div>\n\n\n                            <div class="form-group">\n                                <div class="col-md-8 col-md-offset-4">\n                                    <button ng-click="vm.submit()" type="submit" class="btn btn-primary">\n                                        Login\n                                    </button>\n                                </div>\n                            </div>\n\n                        </form>\n                    </div>\n                </div>\n            </div>\n        </div>\n    </div>\n</ui-view>\n';
-},{}],59:[function(require,module,exports){
+},{}],44:[function(require,module,exports){
+'use strict';
+
+module.exports = ["data", "servicios", "ComunaService", "$state", "toastr", function (data, servicios, ComunaService, $state, toastr) {
+  'ngInject';
+
+  var vm = this;
+  vm.action = 'Editar';
+  vm.data = data;
+  vm.servicios = servicios;
+  vm.errors = {};
+  vm.formIsSubmit = false;
+
+  this.submitForm = function () {
+    vm.formIsSubmit = true;
+
+    ComunaService.updateResource(vm.data.id, vm.data).then(function (data) {
+      toastr.success(data.data.message, 'Estado!');
+      $state.go('app.comunas.index', {}, { reload: true });
+    }).catch(function (errors) {
+      vm.errors = errors.data;
+    }).finally(function () {
+      vm.formIsSubmit = false;
+    });
+  };
+
+  this.hasError = function (property) {
+    return vm.errors.hasOwnProperty(property);
+  };
+}];
+
+},{}],45:[function(require,module,exports){
+'use strict';
+
+module.exports = ["comunas", "ComunaService", "toastr", "Confirm", "$state", "$stateParams", "AclService", function (comunas, ComunaService, toastr, Confirm, $state, $stateParams, AclService) {
+  'ngInject';
+
+  var vm = this;
+  vm.comunas = comunas.data;
+  vm.totalItems = comunas.total;
+  vm.itemsPerPage = comunas.per_page;
+  vm.search = $stateParams;
+  vm.page = comunas.current_page;
+  vm.reload = false;
+  vm.hasRole = AclService.hasRole;
+
+  vm.destroy = function (id, index) {
+    Confirm.destroy(function () {
+      vm.deleteComuna(id, index);
+    });
+  };
+
+  vm.deleteComuna = function (id, index) {
+    ComunaService.deleteResource(id).then(function (data) {
+      toastr.success(data.data.message, 'Estado!');
+      $state.reload();
+    }).catch(function (errors) {
+      vm.errors = errors.data;
+    });
+  };
+
+  vm.filter = function (page) {
+    vm.search.page = page || 1;
+    $state.go('.', vm.search, { reload: true });
+    vm.reload = true;
+  };
+}];
+
+},{}],46:[function(require,module,exports){
+module.exports = '<div class=\'row\'>\n    <div class="col-sm-12 col-md-12 col-lg-12">\n        <div class="jarviswidget jarviswidget-color-blueDark" id="user-form">\n            <header>\n                <span class="widget-icon"> <i class="fa" ng-class="{\'fa-plus\': vm.action == \'Crear\', \'fa-edit\': vm.action == \'Editar\'}"></i> </span>\n                <h2>{{ vm.action }} Comuna</h2>\n            </header>\n\n            <div>\n                <div class="widget-body">\n                    <form class="form-horizontal" role="form" method="POST" novalidate>\n\n                        <div class="form-group" ng-class="{\'has-error\': vm.hasError(\'name\')}">\n                            <label class="col-md-4 control-label">Name</label>\n\n                            <div class="col-md-6">\n                                <input type="text" class="form-control" ng-model="vm.data.name">\n\n                                <span ng-if="vm.hasError(\'name\')" class="help-block">\n                                    <strong>{{ vm.errors.name[0] }}</strong>\n                                </span>\n                            </div>\n                        </div>\n\n                        <div class="form-group" ng-class="{\'has-error\': vm.hasError(\'code\')}">\n                            <label class="col-md-4 control-label">Codigo</label>\n\n                            <div class="col-md-6">\n                                <input type="text" class="form-control" ng-model="vm.data.code">\n\n                                <span ng-if="vm.hasError(\'code\')" class="help-block">\n                                    <strong>{{ vm.errors.code[0] }}</strong>\n                                </span>\n                            </div>\n                        </div>\n\n                        <div class="form-group" ng-class="{\'has-error\': vm.hasError(\'servicio_id\')}">\n                            <label class="col-md-4 control-label">Servicio de salud</label>\n\n                            <div class="col-md-6">\n\n                                <ui-select ng-model="vm.data.servicio_id">\n                                    <ui-select-match placeholder="Seleccione servicio de salud...">\n                                        {{$select.selected.name}}\n                                    </ui-select-match>\n                                    <ui-select-choices repeat="servicio.id as servicio in (vm.servicios | filter: $select.search) track by $index">\n                                        <span ng-bind="servicio.name"></span>\n                                    </ui-select-choices>\n                                </ui-select>\n\n                                <span ng-if="vm.hasError(\'servicio_id\')" class="help-block">\n                                    <strong>{{ vm.errors.servicio_id[0] }}</strong>\n                                </span>\n                            </div>\n                        </div>\n\n                        <div class="form-group">\n                            <div class="col-md-6 col-md-offset-4">\n                                <button ng-click="vm.submitForm()" class="btn btn-primary">\n                                    <i ng-class="{\'fa-user\': !vm.formIsSubmit, \'fa-spinner fa-spin\': vm.formIsSubmit }" class="fa fa-btn "></i> {{ vm.action }}\n                                </button>\n                            </div>\n                        </div>\n                    </form>\n                </div>\n            </div>\n        </div>\n    </div>\n</div>\n';
+},{}],47:[function(require,module,exports){
+module.exports = '<ui-view>\n    <div class=\'row\'>\n        <div class="col-sm-12 col-md-12 col-lg-12">\n            <div class=\'pull-right\'>\n                <a ui-sref=\'app.comunas.create\' ng-hide="vm.hasRole(\'admin\')" class=\'btn btn-primary\'>Nueva comuna</a>\n            </div>\n        </div>\n    </div>\n\n    <br>\n\n    <div class=\'row\'>\n        <article class="col-sm-12 col-md-12 col-lg-12">\n            <div class="jarviswidget jarviswidget-color-blueDark" id="users-table">\n                <header>\n                    <span class="widget-icon"> <i class="fa fa-table"></i> </span>\n                    <h2>Listado de comunas</h2>\n                </header>\n\n                <div>\n                    <div class="widget-body">\n                        <table class=\'table table-bordered\'>\n                            <thead>\n                                <tr>\n                                    <th style="width:150px">Codigo</th>\n                                    <th>Nombre</th>\n                                    <th>Servicio salud</th>\n                                    <th ng-hide="vm.hasRole(\'admin\')" class=\'action-column\'>Acciones</th>\n                                </tr>\n                            </thead>\n                            <tbody>\n                                <tr>\n                                    <td> <input ng-model="vm.search.code" ng-blur="vm.filter()" ng-enter="vm.filter()" type="text" class="form-control" placeholder="codigo"></input> </td>\n                                    <td> <input ng-model="vm.search.name" ng-blur="vm.filter()" ng-enter="vm.filter()" type="text" class="form-control" placeholder="nombre"></input> </td>\n                                    <td> <input ng-model="vm.search.servicio" ng-blur="vm.filter()" ng-enter="vm.filter()" type="text" class="form-control" placeholder="servicio salud"></input> </td>\n                                    <td  ng-hide="vm.hasRole(\'admin\')">\n                                </tr>\n                                <tr ng-repeat="comuna in vm.comunas" ng-hide="vm.reload">\n                                    <td>{{ ::comuna.code }}</td>\n                                    <td>{{ ::comuna.name }}</td>\n                                    <td>{{ ::comuna.servicio.name }}</td>\n                                    <td  ng-hide="vm.hasRole(\'admin\')">\n                                        <a ui-sref="app.comunas.edit({id: comuna.id})" class="btn btn-warning btn-xs"><i class=\'fa fa-pencil\'></i></a>\n                                        <a ng-click="vm.destroy(comuna.id, $index)" class=\'btn btn-danger btn-xs\'><i class=\'fa fa-trash\'></i></a>\n                                    </td>\n                                </tr>\n                            </tbody>\n                        </table>\n\n                        <div ng-if=\'vm.reload\' class=\'text-center\'>\n                            <i class="fa fa-2x fa-spinner fa-spin"></i>\n                        </div>\n\n                        <div ng-hide="vm.reload" ng-if="vm.comunas | isEmpty" class=\'text-center\'>\n                            Sin resultados\n                        </div>\n\n                        <div ng-hide="vm.reload" ng-if="! (vm.comunas | isEmpty)" class=\'text-center\'>\n                            <ul uib-pagination items-per-page="vm.itemsPerPage" max-size="10" boundary-link-numbers="true" rotate="false" force-ellipses="true" total-items="vm.totalItems" ng-model="vm.page" ng-change="vm.filter(vm.page)"></ul>\n                        </div>\n\n                    </div>\n                </div>\n            </div>\n        </article>\n    </div>\n</ui-view>\n';
+},{}],48:[function(require,module,exports){
 'use strict';
 
 module.exports = function () {
@@ -100235,49 +89384,7 @@ module.exports = function () {
   };
 };
 
-},{}],60:[function(require,module,exports){
-'use strict';
-
-module.exports = ["$log", "$http", function ($log, $http) {
-	'ngInject';
-
-	var link = function link($scope, $element, attrs) {
-		var ajax_dropdown = null;
-
-		$element.on('click', function () {
-			var badge = $(this).find('.badge');
-
-			if (badge.hasClass('bg-color-red')) {
-				badge.removeClass('bg-color-red').text(0);
-				$http.post('/api/markNotificationsAsRead');
-			}
-
-			ajax_dropdown = $(this).next('.ajax-dropdown');
-
-			if (!ajax_dropdown.is(':visible')) {
-				ajax_dropdown.fadeIn(150);
-				$(this).addClass('active');
-			} else {
-				ajax_dropdown.fadeOut(150);
-				$(this).removeClass('active');
-			}
-		});
-
-		$(document).mouseup(function (e) {
-			if (ajax_dropdown && !ajax_dropdown.is(e.target) && ajax_dropdown.has(e.target).length === 0) {
-				ajax_dropdown.fadeOut(150);
-				$element.removeClass('active');
-			}
-		});
-	};
-
-	return {
-		restrict: 'EA',
-		link: link
-	};
-}];
-
-},{}],61:[function(require,module,exports){
+},{}],49:[function(require,module,exports){
 'use strict';
 
 module.exports = ["$state", "$rootScope", function ($state, $rootScope) {
@@ -100341,37 +89448,42 @@ module.exports = ["$state", "$rootScope", function ($state, $rootScope) {
           }).find('>a').append('<b class="collapse-sign"><em class="fa fa-plus-square-o"></em></b>');
 
           // initialization toggle
-          if ($li.find('li.active').length) {
+          if ($li.find('a.active').length) {
             $li.smartCollapseToggle();
-            $li.find('li.active').parents('li').addClass('active');
+            $li.find('a.active').parents('li').addClass('active');
           }
         });
       };
-      bindEvents();
 
-      // click on route link
-      element.on('click', 'a[data-ui-sref]', function (e) {
-        // collapse all siblings to element parents and remove active markers
-        $(this).parents('li').addClass('active').each(function () {
-          $(this).siblings('li.open').smartCollapseToggle();
-          $(this).siblings('li').removeClass('active');
+      $(document).ready(function () {
+        bindEvents();
+
+        // click on route link
+        element.on('click', 'a[data-ui-sref]', function (e) {
+          $('nav  li.active').removeClass('active');
+
+          // collapse all siblings to element parents and remove active markers
+          $(this).parents('li').addClass('active').each(function () {
+            $(this).siblings('li.open').smartCollapseToggle();
+            $(this).siblings('li').removeClass('active');
+          });
+
+          if ($body.hasClass('mobile-view-activated')) {
+            $rootScope.$broadcast('requestToggleMenu');
+          }
         });
 
-        if ($body.hasClass('mobile-view-activated')) {
-          $rootScope.$broadcast('requestToggleMenu');
-        }
-      });
-
-      scope.$on('$smartLayoutMenuOnTop', function (event, menuOnTop) {
-        if (menuOnTop) {
-          $collapsible.filter('.open').smartCollapseToggle();
-        }
+        scope.$on('$smartLayoutMenuOnTop', function (event, menuOnTop) {
+          if (menuOnTop) {
+            $collapsible.filter('.open').smartCollapseToggle();
+          }
+        });
       });
     }
   };
 }];
 
-},{"jquery":24}],62:[function(require,module,exports){
+},{"jquery":22}],50:[function(require,module,exports){
 'use strict';
 
 module.exports = ["$rootScope", "$state", function ($rootScope, $state) {
@@ -100380,11 +89492,11 @@ module.exports = ["$rootScope", "$state", function ($rootScope, $state) {
 	return {
 		restrict: 'EA',
 		replace: true,
-		template: '<ol class="breadcrumb"><li>Home</li></ol>',
+		template: '<ol class="breadcrumb"></ol>',
 		link: function link(scope, element) {
 
 			function setBreadcrumbs(breadcrumbs) {
-				var html = '<li>Home</li>';
+				var html = '';
 				angular.forEach(breadcrumbs, function (crumb) {
 					html += '<li>' + crumb + '</li>';
 				});
@@ -100426,68 +89538,120 @@ module.exports = ["$rootScope", "$state", function ($rootScope, $state) {
 	};
 }];
 
-},{}],63:[function(require,module,exports){
+},{}],51:[function(require,module,exports){
 'use strict';
 
-module.exports = ["$timeout", function ($timeout) {
-	'ngInject';
+module.exports = ["EstablecimientoService", "comunas", "$state", "toastr", function (EstablecimientoService, comunas, $state, toastr) {
+  'ngInject';
 
-	var initDomEvents = function initDomEvents($element) {
+  var vm = this;
+  vm.action = 'Crear';
+  vm.errors = {};
+  vm.formIsSubmit = false;
+  vm.comunas = comunas;
+  vm.data = {};
 
-		var shortcut_dropdown = $('#shortcut');
+  this.submitForm = function () {
+    vm.formIsSubmit = true;
 
-		$element.on('click', function () {
+    EstablecimientoService.createResource(vm.data).then(function (data) {
+      toastr.success(data.data.message, 'Estado!');
+      $state.go('app.establecimientos.index', {}, { reload: true });
+    }).catch(function (errors) {
+      vm.errors = errors.data;
+    }).finally(function () {
+      vm.formIsSubmit = false;
+    });
+  };
 
-			if (shortcut_dropdown.is(":visible")) {
-				shortcut_buttons_hide();
-			} else {
-				shortcut_buttons_show();
-			}
-		});
-
-		shortcut_dropdown.find('a').click(function (e) {
-			e.preventDefault();
-			window.location = $(this).attr('href');
-			setTimeout(shortcut_buttons_hide, 300);
-		});
-
-		// SHORTCUT buttons goes away if mouse is clicked outside of the area
-		$(document).mouseup(function (e) {
-			if (shortcut_dropdown && !shortcut_dropdown.is(e.target) && shortcut_dropdown.has(e.target).length === 0) {
-				shortcut_buttons_hide();
-			}
-		});
-
-		// SHORTCUT ANIMATE HIDE
-		function shortcut_buttons_hide() {
-			shortcut_dropdown.animate({
-				height: "hide"
-			}, 300);
-			$('body').removeClass('shortcut-on');
-		}
-
-		// SHORTCUT ANIMATE SHOW
-		function shortcut_buttons_show() {
-			shortcut_dropdown.animate({
-				height: "show"
-			}, 200);
-			$('body').addClass('shortcut-on');
-		}
-	};
-
-	var link = function link($scope, $element) {
-		$timeout(function () {
-			initDomEvents($element);
-		});
-	};
-
-	return {
-		restrict: 'EA',
-		link: link
-	};
+  this.hasError = function (property) {
+    return vm.errors.hasOwnProperty(property);
+  };
 }];
 
-},{}],64:[function(require,module,exports){
+},{}],52:[function(require,module,exports){
+'use strict';
+
+module.exports = ["data", "comunas", "EstablecimientoService", "$state", "toastr", function (data, comunas, EstablecimientoService, $state, toastr) {
+  'ngInject';
+
+  var vm = this;
+  vm.action = 'Editar';
+  vm.data = data;
+  vm.comunas = comunas;
+  vm.errors = {};
+  vm.formIsSubmit = false;
+
+  this.submitForm = function () {
+    vm.formIsSubmit = true;
+
+    EstablecimientoService.updateResource(vm.data.id, vm.data).then(function (data) {
+      toastr.success(data.data.message, 'Estado!');
+      $state.go('app.establecimientos.index', {}, { reload: true });
+    }).catch(function (errors) {
+      vm.errors = errors.data;
+    }).finally(function () {
+      vm.formIsSubmit = false;
+    });
+  };
+
+  this.hasError = function (property) {
+    return vm.errors.hasOwnProperty(property);
+  };
+}];
+
+},{}],53:[function(require,module,exports){
+'use strict';
+
+module.exports = ["ApiService", "$http", function (ApiService, $http) {
+  'ngInject';
+
+  angular.extend(this, ApiService);
+  this.resource = 'establecimientos';
+}];
+
+},{}],54:[function(require,module,exports){
+'use strict';
+
+module.exports = ["establecimientos", "EstablecimientoService", "toastr", "Confirm", "$state", "$stateParams", "AclService", function (establecimientos, EstablecimientoService, toastr, Confirm, $state, $stateParams, AclService) {
+  'ngInject';
+
+  var vm = this;
+  vm.establecimientos = establecimientos.data;
+  vm.totalItems = establecimientos.total;
+  vm.itemsPerPage = establecimientos.per_page;
+  vm.search = $stateParams;
+  vm.page = establecimientos.current_page;
+  vm.reload = false;
+  vm.hasRole = AclService.hasRole;
+
+  vm.destroy = function (id, index) {
+    Confirm.destroy(function () {
+      vm.deleteEstablecimiento(id, index);
+    });
+  };
+
+  vm.deleteEstablecimiento = function (id, index) {
+    EstablecimientoService.deleteResource(id).then(function (data) {
+      toastr.success(data.data.message, 'Estado!');
+      $state.reload();
+    }).catch(function (errors) {
+      vm.errors = errors.data;
+    });
+  };
+
+  vm.filter = function (page) {
+    vm.search.page = page || 1;
+    $state.go('.', vm.search, { reload: true });
+    vm.reload = true;
+  };
+}];
+
+},{}],55:[function(require,module,exports){
+module.exports = '<div class=\'row\'>\n    <div class="col-sm-12 col-md-12 col-lg-12">\n        <div class="jarviswidget jarviswidget-color-blueDark" id="user-form">\n            <header>\n                <span class="widget-icon"> <i class="fa" ng-class="{\'fa-plus\': vm.action == \'Crear\', \'fa-edit\': vm.action == \'Editar\'}"></i> </span>\n                <h2>{{ vm.action }} establecimiento</h2>\n            </header>\n\n            <div>\n                <div class="widget-body">\n                    <form class="form-horizontal" role="form" method="POST" novalidate>\n\n                        <div class="form-group" ng-class="{\'has-error\': vm.hasError(\'name\')}">\n                            <label class="col-md-4 control-label">Name</label>\n\n                            <div class="col-md-6">\n                                <input type="text" class="form-control" ng-model="vm.data.name">\n\n                                <span ng-if="vm.hasError(\'name\')" class="help-block">\n                                    <strong>{{ vm.errors.name[0] }}</strong>\n                                </span>\n                            </div>\n                        </div>\n\n                        <div class="form-group" ng-class="{\'has-error\': vm.hasError(\'code\')}">\n                            <label class="col-md-4 control-label">Codigo</label>\n\n                            <div class="col-md-6">\n                                <input type="text" class="form-control" ng-model="vm.data.code">\n\n                                <span ng-if="vm.hasError(\'code\')" class="help-block">\n                                    <strong>{{ vm.errors.code[0] }}</strong>\n                                </span>\n                            </div>\n                        </div>\n\n                        <div class="form-group" ng-class="{\'has-error\': vm.hasError(\'comuna_id\')}">\n                            <label class="col-md-4 control-label">Comuna</label>\n\n                            <div class="col-md-6">\n\n                                <ui-select ng-model="vm.data.comuna_id">\n                                    <ui-select-match placeholder="Seleccione comuna">{{$select.selected.name }} ({{$select.selected.code}})</ui-select-match>\n                                    <ui-select-choices repeat="comuna.id as comuna in vm.comunas | propsFilter: {name: $select.search} track by $index">\n                                        <div ng-bind-html="comuna.name | highlight: $select.search"></div>\n                                        <small>\n                                            <strong>codigo:</strong> <span ng-bind-html="comuna.code | highlight: $select.search"></span>\n                                        </small>\n                                    </ui-select-choices>\n                                </ui-select>\n\n                                <span ng-if="vm.hasError(\'comuna_id\')" class="help-block">\n                                    <strong>{{ vm.errors.comuna_id[0] }}</strong>\n                                </span>\n                            </div>\n                        </div>\n\n                        <div class="form-group">\n                            <div class="col-md-6 col-md-offset-4">\n                                <button ng-click="vm.submitForm()" class="btn btn-primary">\n                                    <i ng-class="{\'fa-user\': !vm.formIsSubmit, \'fa-spinner fa-spin\': vm.formIsSubmit }" class="fa fa-btn "></i> {{ vm.action }}\n                                </button>\n                            </div>\n                        </div>\n                    </form>\n                </div>\n            </div>\n        </div>\n    </div>\n</div>\n';
+},{}],56:[function(require,module,exports){
+module.exports = '<ui-view>\n    <div class=\'row\'>\n        <div class="col-sm-12 col-md-12 col-lg-12">\n            <div class=\'pull-right\'>\n                <a ui-sref=\'app.establecimientos.create\' ng-hide="vm.hasRole(\'admin\')" class=\'btn btn-primary\'>Nuevo establecimiento</a>\n            </div>\n        </div>\n    </div>\n\n    <br>\n\n    <div class=\'row\'>\n        <article class="col-sm-12 col-md-12 col-lg-12">\n            <div class="jarviswidget jarviswidget-color-blueDark" id="users-table">\n                <header>\n                    <span class="widget-icon"> <i class="fa fa-table"></i> </span>\n                    <h2>Listado de establecimientos</h2>\n                </header>\n\n                <div>\n                    <div class="widget-body">\n                        <table class=\'table table-bordered\'>\n                            <thead>\n                                <tr>\n                                    <th style="width:150px">Codigo</th>\n                                    <th>Nombre</th>\n                                    <th>Comuna</th>\n                                    <th ng-hide="vm.hasRole(\'admin\')" class=\'action-column\'>Acciones</th>\n                                </tr>\n                            </thead>\n                            <tbody>\n                                <tr>\n                                    <td> <input ng-model="vm.search.code" ng-blur="vm.filter()" ng-enter="vm.filter()" type="text" class="form-control" placeholder="codigo"></input> </td>\n                                    <td> <input ng-model="vm.search.name" ng-blur="vm.filter()" ng-enter="vm.filter()" type="text" class="form-control" placeholder="nombre"></input> </td>\n                                    <td> <input ng-model="vm.search.comuna" ng-blur="vm.filter()" ng-enter="vm.filter()" type="text" class="form-control" placeholder="comuna"></input> </td>\n                                    <td  ng-hide="vm.hasRole(\'admin\')">\n                                </tr>\n                                <tr ng-repeat="establecimiento in vm.establecimientos" ng-hide="vm.reload">\n                                    <td>{{ ::establecimiento.code }}</td>\n                                    <td>{{ ::establecimiento.name }}</td>\n                                    <td>{{ ::establecimiento.comuna.name }}</td>\n                                    <td  ng-hide="vm.hasRole(\'admin\')">\n                                        <a ui-sref="app.establecimientos.edit({id: establecimiento.id})" class="btn btn-warning btn-xs"><i class=\'fa fa-pencil\'></i></a>\n                                        <a ng-click="vm.destroy(establecimiento.id, $index)" class=\'btn btn-danger btn-xs\'><i class=\'fa fa-trash\'></i></a>\n                                    </td>\n                                </tr>\n                            </tbody>\n                        </table>\n\n                        <div ng-if=\'vm.reload\' class=\'text-center\'>\n                            <i class="fa fa-2x fa-spinner fa-spin"></i>\n                        </div>\n\n                        <div ng-hide="vm.reload" ng-if="vm.establecimientos | isEmpty" class=\'text-center\'>\n                            Sin resultados\n                        </div>\n\n                        <div ng-hide="vm.reload" ng-if="! (vm.establecimientos | isEmpty)" class=\'text-center\'>\n                            <ul uib-pagination items-per-page="vm.itemsPerPage" max-size="10" boundary-link-numbers="true" rotate="false" force-ellipses="true" total-items="vm.totalItems" ng-model="vm.page" ng-change="vm.filter(vm.page)"></ul>\n                        </div>\n\n                    </div>\n                </div>\n            </div>\n        </article>\n    </div>\n</ui-view>\n';
+},{}],57:[function(require,module,exports){
 'use strict';
 
 module.exports = function () {
@@ -100503,9 +89667,44 @@ module.exports = function () {
   };
 };
 
-},{}],65:[function(require,module,exports){
-module.exports = '<div class="smart-style-3">\n    <header id="header">\n        <div id="logo-group">\n\n            <span id="logo" style="margin-top:5px"> <img src="/img/logo.png" style="width:90px" alt="ChCC"> </span>\n\n            <!-- notifications -->\n            <span notifications-toggle id="activity" class="activity-dropdown">\n                <i class="fa fa-user"></i> <b class="badge" ng-class="{\'bg-color-red\': vm.unreadNotificationsSize > 0}"> {{ vm.unreadNotificationsSize }}</b>\n            </span>\n\n            <div class="ajax-dropdown">\n                <div class="btn-group btn-group-justified" data-toggle="buttons">\n                    <label class="btn btn-default">\n                        <input type="radio" name="activity">\n                        Notificaciones ({{ vm.notificationsSize }}) </label>\n                </div>\n\n                <!-- notification content -->\n                <div class="ajax-notifications custom-scroll">\n\n                    <ul class="notification-body">\n                        <li ng-repeat="notification in vm.user.notifications">\n                            <span class="padding-10" ng-class="{unread : !notification.read_at}">\n                                <em class="badge padding-5 no-border-radius bg-color-blueLight pull-left margin-right-5">\n                                    <i class="fa {{notification.data.icon}} fa-fw fa-2x"></i>\n                                </em>\n\n                                <span>\n                                    {{notification.data.message}}\n                                    <br>\n                                    <span class="pull-right font-xs text-muted"><i>{{notification.time}}</i></span>\n                                </span>\n                            </span>\n                        </li>\n                    </ul>\n                </div>\n            </div>\n        </div>\n\n        <div class="pull-right">\n\n            <div id="hide-menu" class="btn-header pull-right">\n                <span> <a href="javascript:void(0);" data-action="toggleMenu" title="Collapse Menu"><i class="fa fa-reorder"></i></a> </span>\n            </div>\n\n            <!-- #MOBILE -->\n            <!-- Top menu profile link : this shows only when top menu is active -->\n            <ul id="mobile-profile-img" class="header-dropdown-list hidden-xs padding-5">\n                <li class="">\n                    <a href="#" class="dropdown-toggle no-margin userdropdown" data-toggle="dropdown">\n                        <img src="/img/avatars/male.png" class="online" />\n                    </a>\n                    <ul class="dropdown-menu pull-right">\n                        <li>\n                            <a href="#" class="padding-10 padding-top-0 padding-bottom-0"><i class="fa fa-cog"></i> Setting</a>\n                        </li>\n                        <li class="divider"></li>\n                        <li>\n                            <a href="#" class="padding-10 padding-top-0 padding-bottom-0"> <i class="fa fa-user"></i> <u>P</u>rofile</a>\n                        </li>\n                        <li class="divider"></li>\n                        <li>\n                            <a ui-sref="logout" class="padding-10 padding-top-5 padding-bottom-5" data-action="userLogout"><i class="fa fa-sign-out fa-lg"></i> <strong><u>L</u>ogout</strong></a>\n                        </li>\n                    </ul>\n                </li>\n            </ul>\n\n            <!-- logout -->\n            <div id="logout" class="btn-header transparent pull-right">\n                <span> <a ui-sref="logout" title="Sign Out" data-action="userLogout"><i class="fa fa-sign-out"></i></a> </span>\n            </div>\n        </div>\n\n    </header>\n\n    <aside id="left-panel">\n\n        <!-- User info -->\n        <div class="login-info">\n            <span>\n\n                <a href="javascript:void(0);" toggle-shortcut>\n                    <img src="/img/avatars/male.png" class="online" />\n                    <span>\n                        {{ vm.user.name }}\n                    </span>\n                    <i class="fa fa-angle-down"></i>\n                </a>\n\n            </span>\n        </div>\n\n		<nav>\n            <ul data-smart-menu>\n                <li ui-sref-active="active">\n                    <a ui-sref="app.profile"><i class="fa fa-lg fa-fw fa-user"></i> <span class="menu-item-parent">Perfil</span></a>\n                </li>\n                <li ui-sref-active="active">\n                    <a ui-sref="app.home"><i class="fa fa-lg fa-fw fa-dashboard"></i> <span class="menu-item-parent">Home</span></a>\n                </li>\n                <li ui-sref-active="active">\n                    <a ui-sref="app.csvs"><i class="fa fa-lg fa-fw fa-file"></i> <span class="menu-item-parent">Archivo Cargas</span></a>\n                </li>\n            </ul>\n        </nav>\n\n        <span class="minifyme" data-action="minifyMenu"> <i class="fa fa-arrow-circle-left hit"></i> </span>\n    </aside>\n\n    <div id="main" role="main">\n\n        <div id="ribbon">\n            <state-breadcrumbs></state-breadcrumbs>\n        </div>\n\n        <div id="content">\n            <div ui-view></div>\n        </div>\n\n    </div>\n\n    <div class="page-footer">\n        <div class="row">\n            <div class="col-xs-12 col-sm-12 col-md-12">\n                <span class="txt-color-white" style="font-size:11px">Ante cualquier problema escribir a: soporte@sistema.cl</span> </div>\n        </div>\n    </div>\n\n	<div id="shortcut">\n		<ul>\n			<li>\n				<a ui-sref="app.profile" class="jarvismetro-tile big-cubes bg-color-orangeDark"> <span class="iconbox"> <i class="fa fa-user fa-4x"></i> <span>Perfil</span> </span> </a>\n			</li>\n            <li>\n				<a ui-sref="app.home" ng-if="vm.hasRole(\'solicitante\')" class="jarvismetro-tile big-cubes bg-color-purple"> <span class="iconbox"> <i class="fa fa-user fa-4x"></i> <span>Dashboard</span> </span> </a>\n			</li>\n			<li>\n				<a ui-sref="logout" class="jarvismetro-tile big-cubes bg-color-blueDark"> <span class="iconbox"> <i class="fa fa-sign-out fa-4x"></i> <span>Salir </span> </span> </a>\n			</li>\n		</ul>\n	</div>\n	<!-- END SHORTCUT AREA -->\n</div>\n';
-},{}],66:[function(require,module,exports){
+},{}],58:[function(require,module,exports){
+"use strict";
+
+module.exports = function () {
+	return function (items, props) {
+		var out = [];
+
+		if (angular.isArray(items)) {
+			var keys = Object.keys(props);
+
+			items.forEach(function (item) {
+				var itemMatches = false;
+
+				for (var i = 0; i < keys.length; i++) {
+					var prop = keys[i];
+					var text = props[prop].toLowerCase();
+					if (item[prop].toString().toLowerCase().indexOf(text) !== -1) {
+						itemMatches = true;
+						break;
+					}
+				}
+
+				if (itemMatches) {
+					out.push(item);
+				}
+			});
+		} else {
+			// Let the output be the input untouched
+			out = items;
+		}
+
+		return out;
+	};
+};
+
+},{}],59:[function(require,module,exports){
+module.exports = '<!-- #HEADER -->\n<header id="header">\n    <div id="logo-group">\n\n        <span id="logo" style="margin-top:5px"> <img src="/img/logo.png" style="width:90px" alt="logo"> </span>\n    </div>\n\n    <div class="pull-right">\n\n        <div id="hide-menu" class="btn-header pull-right">\n            <span> <a href="javascript:void(0);" data-action="toggleMenu" title="Collapse Menu"><i class="fa fa-reorder"></i></a> </span>\n        </div>\n\n        <!-- #MOBILE -->\n        <!-- Top menu profile link : this shows only when top menu is active -->\n        <ul id="mobile-profile-img" class="header-dropdown-list hidden-xs padding-5">\n            <li class="">\n                <a href="#" class="dropdown-toggle no-margin userdropdown" data-toggle="dropdown">\n                    <img src="/img/avatars/male.png" class="online" />\n                </a>\n                <ul class="dropdown-menu pull-right">\n                    <li>\n                        <a href="javascript:void(0);" class="padding-10 padding-top-0 padding-bottom-0"><i class="fa fa-cog"></i> Setting</a>\n                    </li>\n                    <li class="divider"></li>\n                    <li>\n                        <a href="#ajax/profile.html" class="padding-10 padding-top-0 padding-bottom-0"> <i class="fa fa-user"></i> <u>P</u>rofile</a>\n                    </li>\n                    <li class="divider"></li>\n                    <li>\n                        <a href="javascript:void(0);" class="padding-10 padding-top-0 padding-bottom-0" data-action="toggleShortcut"><i class="fa fa-arrow-down"></i> <u>S</u>hortcut</a>\n                    </li>\n                    <li class="divider"></li>\n                    <li>\n                        <a href="javascript:void(0);" class="padding-10 padding-top-0 padding-bottom-0" data-action="launchFullscreen"><i class="fa fa-arrows-alt"></i> Full <u>S</u>creen</a>\n                    </li>\n                    <li class="divider"></li>\n                    <li>\n                        <a ui-sref="logout" class="padding-10 padding-top-5 padding-bottom-5" data-action="userLogout"><i class="fa fa-sign-out fa-lg"></i> <strong><u>L</u>ogout</strong></a>\n                    </li>\n                </ul>\n            </li>\n        </ul>\n\n        <!-- logout button -->\n        <div id="logout" class="btn-header transparent pull-right">\n            <span> <a ui-sref="logout" title="Sign Out" data-action="userLogout"><i class="fa fa-sign-out"></i></a> </span>\n        </div>\n    </div>\n\n</header>\n\n<!-- Note: This width of the aside area can be adjusted through LESS/SASS variables -->\n<aside id="left-panel">\n\n    <!-- User info -->\n    <div class="login-info">\n        <span>\n\n            <a href="javascript:void(0);" id="show-shortcut" data-action="toggleShortcut">\n                <img src="/img/avatars/male.png" class="online" />\n                <span>\n                    {{ vm.user.name }}\n                </span>\n            </a>\n\n        </span>\n    </div>\n\n    <nav>\n        <ul data-smart-menu>\n            <li ui-sref-active="active">\n                <a ui-sref="app.home"><i class="fa fa-lg fa-fw fa-home"></i> <span class="menu-item-parent">Home</span></a>\n            </li>\n            <li data-menu-collapse>\n                <a href="#"><i class="fa fa-lg fa-fw fa-cogs"></i> <span class="menu-item-parent">Administración</span></a>\n                <ul>\n                    <li>\n                        <a data-ui-sref="app.regions.index" ui-sref-active="{\'active\': \'app.regions\'}"><i class="fa fa-cogs"></i> Regiones</a>\n                    </li>\n                    <li>\n                        <a data-ui-sref="app.serviciosSalud.index" ui-sref-active="{\'active\': \'app.serviciosSalud\'}"><i class="fa fa-cogs"></i> Servicios de Salud</a>\n                    </li>\n                    <li>\n                        <a data-ui-sref="app.comunas.index" ui-sref-active="{\'active\': \'app.comunas\'}"><i class="fa fa-cogs"></i> Comunas</a>\n                    </li>\n                    <li>\n                        <a data-ui-sref="app.establecimientos.index" ui-sref-active="{\'active\': \'app.establecimientos\'}"><i class="fa fa-cogs"></i> Establecimientos</a>\n                    </li>\n                    <li>\n                        <a data-ui-sref="app.users.index" ui-sref-active="{\'active\': \'app.users\'}"><i class="fa fa-users"></i> Usuarios</a>\n                    </li>\n                </ul>\n            </li>\n        </ul>\n    </nav>\n\n    <span class="minifyme" data-action="minifyMenu"> <i class="fa fa-arrow-circle-left hit"></i> </span>\n</aside>\n\n<!-- #MAIN PANEL -->\n<div id="main" role="main">\n\n    <!-- RIBBON -->\n    <div id="ribbon">\n         <state-breadcrumbs></state-breadcrumbs>\n    </div>\n\n    <div id="content">\n        <div ui-view></div>\n    </div>\n\n</div>\n\n<div class="page-footer">\n    <div class="row">\n        <div class="col-xs-12 col-sm-6">\n            <span class="txt-color-white">Sistema X - © Organización Y</span>\n        </div>\n    </div>\n</div>\n';
+},{}],60:[function(require,module,exports){
 'use strict';
 
 $.root_ = $('body');
@@ -100542,24 +89741,38 @@ function minifyMenu($this) {
   }
 }
 
-},{}],67:[function(require,module,exports){
+},{}],61:[function(require,module,exports){
 'use strict';
 
-module.exports = ["user", "UserService", "$state", "toastr", function (user, UserService, $state, toastr) {
+module.exports = ["$http", "$q", function ($http, $q) {
+  'ngInject';
+
+  this.all = function () {
+    return $http.get('/api/permissions');
+  };
+}];
+
+},{}],62:[function(require,module,exports){
+'use strict';
+
+module.exports = ["RegionService", "$state", "toastr", function (RegionService, $state, toastr) {
   'ngInject';
 
   var vm = this;
-  vm.user = user;
+  vm.action = 'Crear';
   vm.errors = {};
-  vm.showPanelPassword = false;
   vm.formIsSubmit = false;
+  vm.data = {
+    name: '',
+    code: ''
+  };
 
   this.submitForm = function () {
     vm.formIsSubmit = true;
 
-    UserService.changePassword(vm.data).then(function (data) {
+    RegionService.createResource(vm.data).then(function (data) {
       toastr.success(data.data.message, 'Estado!');
-      $state.go('app.profile', {}, { reload: true });
+      $state.go('app.regions.index', {}, { reload: true });
     }).catch(function (errors) {
       vm.errors = errors.data;
     }).finally(function () {
@@ -100572,17 +89785,240 @@ module.exports = ["user", "UserService", "$state", "toastr", function (user, Use
   };
 }];
 
+},{}],63:[function(require,module,exports){
+'use strict';
+
+module.exports = ["data", "RegionService", "$state", "toastr", function (data, RegionService, $state, toastr) {
+  'ngInject';
+
+  var vm = this;
+  vm.action = 'Editar';
+  vm.data = data;
+  vm.errors = {};
+  vm.formIsSubmit = false;
+
+  this.submitForm = function () {
+    vm.formIsSubmit = true;
+
+    RegionService.updateResource(vm.data.id, vm.data).then(function (data) {
+      toastr.success(data.data.message, 'Estado!');
+      $state.go('app.regions.index', {}, { reload: true });
+    }).catch(function (errors) {
+      vm.errors = errors.data;
+    }).finally(function () {
+      vm.formIsSubmit = false;
+    });
+  };
+
+  this.hasError = function (property) {
+    return vm.errors.hasOwnProperty(property);
+  };
+}];
+
+},{}],64:[function(require,module,exports){
+'use strict';
+
+module.exports = ["regions", "RegionService", "toastr", "Confirm", "$state", "$stateParams", "AclService", function (regions, RegionService, toastr, Confirm, $state, $stateParams, AclService) {
+  'ngInject';
+
+  var vm = this;
+  vm.regions = regions.data;
+  vm.totalItems = regions.total;
+  vm.itemsPerPage = regions.per_page;
+  vm.search = $stateParams;
+  vm.page = regions.current_page;
+  vm.reload = false;
+  vm.hasRole = AclService.hasRole;
+
+  vm.destroy = function (id, index) {
+    Confirm.destroy(function () {
+      vm.deleteRegion(id, index);
+    });
+  };
+
+  vm.deleteRegion = function (id, index) {
+    RegionService.deleteResource(id).then(function (data) {
+      toastr.success(data.data.message, 'Estado!');
+      $state.reload();
+    }).catch(function (errors) {
+      vm.errors = errors.data;
+    });
+  };
+
+  vm.filter = function (page) {
+    vm.search.page = page || 1;
+    $state.go('.', vm.search, { reload: true });
+    vm.reload = true;
+  };
+}];
+
+},{}],65:[function(require,module,exports){
+'use strict';
+
+module.exports = ["ApiService", "$http", function (ApiService, $http) {
+  'ngInject';
+
+  angular.extend(this, ApiService);
+  this.resource = 'regions';
+}];
+
+},{}],66:[function(require,module,exports){
+module.exports = '<div class=\'row\'>\n    <div class="col-sm-12 col-md-12 col-lg-12">\n        <div class="jarviswidget jarviswidget-color-blueDark" id="user-form">\n            <header>\n                <span class="widget-icon"> <i class="fa" ng-class="{\'fa-plus\': vm.action == \'Crear\', \'fa-edit\': vm.action == \'Editar\'}"></i> </span>\n                <h2>{{ vm.action }} Region</h2>\n            </header>\n\n            <div>\n                <div class="widget-body">\n                    <form class="form-horizontal" role="form" method="POST" novalidate>\n\n                        <div class="form-group" ng-class="{\'has-error\': vm.hasError(\'name\')}">\n                            <label class="col-md-4 control-label">Name</label>\n\n                            <div class="col-md-6">\n                                <input type="text" class="form-control" ng-model="vm.data.name">\n\n                                <span ng-if="vm.hasError(\'name\')" class="help-block">\n                                    <strong>{{ vm.errors.name[0] }}</strong>\n                                </span>\n                            </div>\n                        </div>\n\n                        <div class="form-group" ng-class="{\'has-error\': vm.hasError(\'code\')}">\n                            <label class="col-md-4 control-label">Codigo</label>\n\n                            <div class="col-md-6">\n                                <input type="text" class="form-control" ng-model="vm.data.code">\n\n                                <span ng-if="vm.hasError(\'code\')" class="help-block">\n                                    <strong>{{ vm.errors.code[0] }}</strong>\n                                </span>\n                            </div>\n                        </div>\n\n                        <div class="form-group">\n                            <div class="col-md-6 col-md-offset-4">\n                                <button ng-click="vm.submitForm()" class="btn btn-primary">\n                                    <i ng-class="{\'fa-user\': !vm.formIsSubmit, \'fa-spinner fa-spin\': vm.formIsSubmit }" class="fa fa-btn "></i> {{ vm.action }}\n                                </button>\n                            </div>\n                        </div>\n                    </form>\n                </div>\n            </div>\n        </div>\n    </div>\n</div>\n';
+},{}],67:[function(require,module,exports){
+module.exports = '<ui-view>\n    <div class=\'row\'>\n        <div class="col-sm-12 col-md-12 col-lg-12">\n            <div class=\'pull-right\'>\n                <a ui-sref=\'app.regions.create\' ng-hide="vm.hasRole(\'admin\')" class=\'btn btn-primary\'>Nueva Region</a>\n            </div>\n        </div>\n    </div>\n\n    <br>\n\n    <div class=\'row\'>\n        <article class="col-sm-12 col-md-12 col-lg-12">\n            <div class="jarviswidget jarviswidget-color-blueDark" id="users-table">\n                <header>\n                    <span class="widget-icon"> <i class="fa fa-table"></i> </span>\n                    <h2>Listado regiones</h2>\n                </header>\n\n                <div>\n                    <div class="widget-body">\n                        <table class=\'table table-bordered\'>\n                            <thead>\n                                <tr>\n                                    <th style="width:150px">Codigo</th>\n                                    <th>Nombre</th>\n                                    <th ng-hide="vm.hasRole(\'admin\')" class=\'action-column\'>Acciones</th>\n                                </tr>\n                            </thead>\n                            <tbody>\n                                <tr>\n                                    <td> <input ng-model="vm.search.code" ng-blur="vm.filter()" ng-enter="vm.filter()" type="text" class="form-control" placeholder="codigo"></input> </td>\n                                    <td> <input ng-model="vm.search.name" ng-blur="vm.filter()" ng-enter="vm.filter()" type="text" class="form-control" placeholder="nombre"></input> </td>\n                                    <td  ng-hide="vm.hasRole(\'admin\')">\n                                </tr>\n                                <tr ng-repeat="region in vm.regions" ng-hide="vm.reload">\n                                    <td>{{ ::region.code }}</td>\n                                    <td>{{ ::region.name }}</td>\n                                    <td  ng-hide="vm.hasRole(\'admin\')">\n                                        <a ui-sref="app.regions.edit({id: region.id})" class="btn btn-warning btn-xs"><i class=\'fa fa-pencil\'></i></a>\n                                        <a ng-click="vm.destroy(region.id, $index)" class=\'btn btn-danger btn-xs\'><i class=\'fa fa-trash\'></i></a>\n                                    </td>\n                                </tr>\n                            </tbody>\n                        </table>\n\n                        <div ng-if=\'vm.reload\' class=\'text-center\'>\n                            <i class="fa fa-2x fa-spinner fa-spin"></i>\n                        </div>\n\n                        <div ng-hide="vm.reload" ng-if="vm.regions | isEmpty" class=\'text-center\'>\n                            Sin resultados\n                        </div>\n\n                        <div ng-hide="vm.reload" ng-if="! (vm.regions | isEmpty)" class=\'text-center\'>\n                            <ul uib-pagination items-per-page="vm.itemsPerPage" max-size="10" boundary-link-numbers="true" rotate="false" force-ellipses="true" total-items="vm.totalItems" ng-model="vm.page" ng-change="vm.filter(vm.page)"></ul>\n                        </div>\n\n                    </div>\n                </div>\n            </div>\n        </article>\n    </div>\n</ui-view>\n';
 },{}],68:[function(require,module,exports){
-module.exports = '<ui-view>\n	<div class="row">\n		<div class="col-xs-12 col-sm-7 col-md-7 col-lg-4">\n			<h1 class="page-title txt-color-blueDark">\n				<i class="fa-fw fa fa-user"></i>\n				Perfil\n			</h1>\n		</div>\n	</div>\n\n	<div class="jarviswidget jarviswidget-color-blueDark" id="profile-table">\n		<!-- <header> -->\n			<!--     <span class="widget-icon"> <i class="fa fa-calendar-o"></i> </span> -->\n			<!--     <h2>Datos del sistema</h2> -->\n			<!-- </header> -->\n\n			<div class="widget-body">\n				<div class="col-sm-3 profile-pic">\n					<img src="img/avatars/male-big.png">\n					<div class="padding-10">\n					</div>\n				</div>\n\n				<div class="col-sm-6">\n					<h1 class=\'capitalize\'> <span class="semi-bold">{{ vm.user.name }} </span>\n						<br>\n						<small> {{ vm.user.cargo }}</small></h1>\n\n					<ul class="list-unstyled">\n						<li>\n							<p class="text-muted">\n								<i class="fa fa-phone"></i>&nbsp;&nbsp; <span class="txt-color-darken"> {{ vm.user.telefono }}</span>\n							</p>\n						</li>\n						<li>\n							<p class="text-muted">\n								<i class="fa fa-envelope"></i>&nbsp;&nbsp;<a href="javascript:void(0);">{{ vm.user.email }}</a>\n							</p>\n						</li>\n					</ul>\n					<br>\n					<a ng-click="vm.showPanelPassword = true" class="btn btn-default btn-xs"><i class="fa fa-lock"></i> Cambiar contraseña</a>\n					<br>\n					<br>\n\n				</div>\n\n			</div>\n	</div>\n\n	<div ng-if="vm.showPanelPassword" class="jarviswidget jarviswidget-color-blueDark" id="password-setting">\n		<header>\n			<span class="widget-icon"> <i class="fa fa-lock"></i> </span>\n			<h2>Actualizar clave</h2>\n		</header>\n\n		<div class="widget-body">\n			<form class="form-horizontal" role="form" method="POST" novalidate>\n				<div class="form-group" ng-class="{\'has-error\': vm.hasError(\'password\')}">\n					<label class="col-md-4 control-label">Nueva contraseña</label>\n\n					<div class="col-md-6">\n						<input type="password" class="form-control" ng-model="vm.data.password">\n\n						<span ng-if="vm.hasError(\'password\')" class="help-block">\n							<strong>{{ vm.errors.password[0] }}</strong>\n						</span>\n					</div>\n				</div>\n\n				<div class="form-group" ng-class="{\'has-error\': vm.hasError(\'password_confirmation\')}">\n					<label class="col-md-4 control-label">Confirmar nueva contraseña</label>\n\n					<div class="col-md-6">\n						<input type="password" class="form-control" ng-model="vm.data.password_confirmation">\n\n						<span ng-if="vm.hasError(\'password_confirmation\')" class="help-block">\n							<strong>{{ vm.errors.password_confirmation[0] }}</strong>\n						</span>\n					</div>\n				</div>\n\n				<div class="form-group">\n					<div class="col-md-6 col-md-offset-4">\n						<button ng-click="vm.submitForm()" class="btn btn-primary">\n							<i ng-class="{\'fa-lock\': !vm.formIsSubmit, \'fa-spinner fa-spin\': vm.formIsSubmit }" class="fa fa-btn "></i> Cambiar contraseña\n						</button>\n					</div>\n				</div>\n\n			</form>\n		</div>\n	</div>\n\n</ui-view>\n';
+'use strict';
+
+module.exports = ["RoleService", "$state", "toastr", "permissions", function (RoleService, $state, toastr, permissions) {
+  'ngInject';
+
+  var vm = this;
+
+  vm.action = 'Crear';
+
+  vm.data = {
+    name: '',
+    label: '',
+    permissions: []
+  };
+
+  vm.permissions = permissions;
+
+  vm.errors = {};
+
+  vm.formIsSubmit = false;
+
+  this.hasError = function (property) {
+    if (vm.errors.hasOwnProperty(property)) {
+      return true;
+    }
+    return false;
+  };
+
+  this.submitForm = function () {
+    vm.formIsSubmit = true;
+
+    RoleService.createResource(vm.data).then(function (data) {
+      toastr.success(data.data.message, 'Estado!');
+      $state.go('app.roles.index', {}, { reload: true });
+    }).catch(function (errors) {
+      vm.errors = errors.data;
+    }).finally(function () {
+      vm.formIsSubmit = false;
+    });
+  };
+}];
+
 },{}],69:[function(require,module,exports){
 'use strict';
+
+module.exports = ["role", "permissions", "RoleService", "$state", "$stateParams", "toastr", function (role, permissions, RoleService, $state, $stateParams, toastr) {
+  'ngInject';
+
+  var vm = this;
+
+  vm.action = 'Editar';
+
+  vm.data = role;
+
+  vm.permissions = permissions;
+
+  vm.errors = {};
+
+  vm.formIsSubmit = false;
+
+  this.hasError = function (property) {
+    if (vm.errors.hasOwnProperty(property)) {
+      return true;
+    }
+    return false;
+  };
+
+  this.submitForm = function () {
+    vm.formIsSubmit = true;
+
+    RoleService.updateResource(vm.getId(), vm.data).then(function (role) {
+      toastr.success(role.data.message, 'Estado!');
+      $state.go('app.roles.index', {}, { reload: true });
+    }).catch(function (errors) {
+      vm.errors = errors.data;
+    }).finally(function () {
+      vm.formIsSubmit = false;
+    });
+  };
+
+  this.getId = function () {
+    return $stateParams.id;
+  };
+}];
+
+},{}],70:[function(require,module,exports){
+'use strict';
+
+module.exports = ["roles", "RoleService", "toastr", "Confirm", "$state", "$stateParams", function (roles, RoleService, toastr, Confirm, $state, $stateParams) {
+  'ngInject';
+
+  var vm = this;
+  vm.roles = roles.data;
+  vm.totalItems = roles.total;
+  vm.itemsPerPage = roles.per_page;
+  vm.search = $stateParams;
+  vm.search.page = roles.current_page;
+  vm.reload = false;
+
+  vm.filter = function () {
+    $state.go('.', vm.search, { reload: true });
+    vm.reload = true;
+  };
+
+  vm.destroy = function (data, index) {
+    Confirm.destroy(function () {
+      vm.deleteRole(data, index);
+    });
+  };
+
+  vm.deleteRole = function (id, index) {
+    RoleService.deleteResource(id).then(function (data) {
+      toastr.success(data.data.message, 'Estado!');
+      vm.removeFromRoles(index);
+    }).catch(function (errors) {
+      vm.errors = errors.data;
+    });
+  };
+
+  vm.removeFromRoles = function (index) {
+    vm.roles.splice(index, 1);
+  };
+}];
+
+},{}],71:[function(require,module,exports){
+'use strict';
+
+module.exports = ["ApiService", function (ApiService) {
+  'ngInject';
+
+  angular.extend(this, ApiService);
+
+  this.resource = 'roles';
+}];
+
+},{}],72:[function(require,module,exports){
+module.exports = '<div class=\'row\'>\n    <div class="col-sm-12 col-md-12 col-lg-12">\n        <div class="jarviswidget jarviswidget-color-blueDark" id="role-form">\n            <header>\n                <span class="widget-icon"> <i class="fa" ng-class="{\'fa-plus\': vm.action == \'Crear\', \'fa-edit\': vm.action == \'Editar\'}"></i> </span>\n                <h2>{{ vm.action }} Rol</h2>\n            </header>\n\n            <div>\n                <div class="widget-body">\n                    <form class="form-horizontal" role="form" method="POST">\n                        <div class="form-group" ng-class="{\'has-error\': vm.hasError(\'name\')}">\n                            <label class="col-md-4 control-label">Name</label>\n\n                            <div class="col-md-6">\n                                <input type="text" class="form-control" ng-model="vm.data.name">\n\n                                <span ng-if="vm.hasError(\'name\')" class="help-block">\n                                    <strong>{{ vm.errors.name[0] }}</strong>\n                                </span>\n                            </div>\n                        </div>\n\n                        <div class="form-group" ng-class="{\'has-error\': vm.hasError(\'label\')}">\n                            <label class="col-md-4 control-label">Nombre legible</label>\n\n                            <div class="col-md-6">\n                                <input type="text" class="form-control" ng-model="vm.data.label">\n\n                                <span ng-if="vm.hasError(\'label\')" class="help-block">\n                                    <strong>{{ vm.errors.label[0] }}</strong>\n                                </span>\n                            </div>\n                        </div>\n\n                        <div class="form-group" ng-class="{\'has-error\': vm.hasError(\'permissions\')}">\n                            <label class="col-md-4 control-label">Permisos</label>\n\n                            <div class="col-md-6">\n\n                                <ui-select multiple ng-model="vm.data.permissions">\n                                    <ui-select-match placeholder="Selecciona permisos...">\n                                        {{$item.label}}\n                                    </ui-select-match>\n                                    <ui-select-choices repeat="permission.id as permission in (vm.permissions | filter: $select.search) track by $index">\n                                        <span ng-bind="permission.label "></span>\n                                    </ui-select-choices>\n                                </ui-select>\n\n                                <span ng-if="vm.hasError(\'permissions\')" class="help-block">\n                                    <strong>{{ vm.errors.permissions[0] }}</strong>\n                                </span>\n                            </div>\n                        </div>\n\n                        <div class="form-group">\n                            <div class="col-md-6 col-md-offset-4">\n                                <button ng-click="vm.submitForm()" class="btn btn-primary">\n                                    <i ng-class="{\'fa-key\': !vm.formIsSubmit, \'fa-spinner fa-spin\': vm.formIsSubmit }" class="fa fa-btn "></i> {{vm.action}}\n                                </button>\n                            </div>\n                        </div>\n                    </form>\n                </div>\n            </div>\n        </div>\n    </div>\n</div>\n';
+},{}],73:[function(require,module,exports){
+module.exports = '<ui-view>\n    <div class=\'row\'>\n        <div class="col-sm-12 col-md-12 col-lg-12">\n            <div class=\'pull-right\'>\n                <a ui-sref="app.roles.create" class=\'btn btn-primary\'>Nuevo Rol</a>\n            </div>\n        </div>\n    </div>\n\n    <br>\n\n    <div class=\'row\'>\n        <article class="col-sm-12 col-md-12 col-lg-12">\n            <div class="jarviswidget jarviswidget-color-blueDark" id="roles-table">\n                <header>\n                    <span class="widget-icon"> <i class="fa fa-table"></i> </span>\n                    <h2>Roles</h2>\n                </header>\n\n                <div>\n                    <div class="widget-body">\n                        <table class=\'table table-bordered\'>\n                            <thead>\n                                <tr>\n                                    <th>Nombre</th>\n                                    <th>Nombre publico o legible</th>\n                                    <th>Permisos</th>\n                                    <th class=\'action-column\'>Acciones</th>\n                                </tr>\n                            </thead>\n                            <tbody>\n                                <tr>\n                                    <td> <input ng-model="vm.search.name" ng-blur="vm.filter()" ng-enter="vm.filter()" type="text" class="form-control" placeholder="nombre"></input> </td>\n                                    <td> <input ng-model="vm.search.label" ng-blur="vm.filter()" ng-enter="vm.filter()" type="text" class="form-control" placeholder="label"></input> </td>\n                                    <td> <input ng-model="vm.search.permissions" ng-blur="vm.filter()" ng-enter="vm.filter()" type="text" class="form-control" placeholder="permiso"></input> </td>\n                                    <td></td>\n                                </tr>\n                                <tr ng-repeat="role in vm.roles" ng-hide="vm.reload">\n                                    <td>{{ ::role.name }}</td>\n                                    <td>{{ ::role.label }}</td>\n                                    <td>\n                                        <span ng-repeat="permission in role.permissions">\n                                            <span class="label label-primary">{{ ::permission.label }}</span>\n                                        </span>\n                                    </td>\n                                    <td>\n                                        <a ui-sref="app.roles.edit({id: role.id})" class="btn btn-warning btn-xs"><i class=\'fa fa-pencil\'></i></a>\n                                        <a ng-click="vm.destroy(role.id, $index)" class=\'btn btn-danger btn-xs\'><i class=\'fa fa-trash\'></i></a>\n                                    </td>\n                                </tr>\n                            </tbody>\n                        </table>\n\n                        <div ng-if=\'vm.reload\' class=\'text-center\'>\n                            <i class="fa fa-2x fa-spinner fa-spin"></i>\n                        </div>\n\n                        <div ng-hide="vm.reload" ng-if="vm.roles | isEmpty" class=\'text-center\'>\n                            Sin resultados\n                        </div>\n\n                        <div ng-hide="vm.reload" ng-if="! (vm.roles | isEmpty)" class=\'text-center\'>\n                            <ul uib-pagination items-per-page="vm.itemsPerPage" max-size="10" boundary-link-numbers="true" rotate="false" force-ellipses="true" total-items="vm.totalItems" ng-model="vm.search.page" ng-change="vm.filter()"></ul>\n                        </div>\n\n                    </div>\n                </div>\n            </div>\n        </article>\n    </div>\n</ui-view>\n';
+},{}],74:[function(require,module,exports){
+'use strict';
+
+function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
 
 module.exports = ["$stateProvider", "$locationProvider", "$urlRouterProvider", function OnConfig($stateProvider, $locationProvider, $urlRouterProvider) {
   'ngInject';
 
   /**
-   * Helper auth functions
-   */
+    * Helper auth functions
+    */
+
+  var _$stateProvider$state;
 
   var skipIfLoggedIn = function skipIfLoggedIn($q, $auth, $location) {
     var deferred = $q.defer();
@@ -100609,109 +90045,408 @@ module.exports = ["$stateProvider", "$locationProvider", "$urlRouterProvider", f
     url: '/logout',
     controller: require('./auth/LogoutController'),
     template: '<div></div>'
-  }).state('register', {
-    url: '/register',
-    controller: require('./auth/RegisterController'),
-    controllerAs: 'vm',
-    template: require('./auth/register.html'),
-    resolve: {
-      skipIfLoggedIn: skipIfLoggedIn
-    }
   })
 
   // application
   .state('app', {
     abstract: true,
     template: require('./layout/layout.html'),
-    controller: ["user", "AclService", "$rootScope", "$pusher", function controller(user, AclService, $rootScope, $pusher) {
-      this.hasRole = AclService.hasRole;
+    controller: ["user", "AclService", function controller(user, AclService) {
       this.user = user;
-      this.notificationsSize = _.size(user.notifications);
-      this.unreadNotificationsSize = _.size(_.filter(user.notifications, function (n) {
-        return !n.read_at;
-      }));
-      if (!$rootScope.pusherChannel) {
-        $rootScope.pusherChannel = pusherListen();
-      }
-      function pusherListen() {
-        var client = new Pusher('a11152c51f4599b7757a');
-        var pusher = $pusher(client);
-        var channelName = 'rrhh-minsal.' + user.id;
-        var channel = pusher.subscribe(channelName);
-        return channel;
-      };
-      $rootScope.pusherChannel.bind('carga-archivos', this.notify);
+      this.hasRole = AclService.hasRole;
     }],
     controllerAs: 'vm',
     resolve: {
-      user: ["UserService", "AclService", "toastr", "$auth", "$state", function user(UserService, AclService, toastr, $auth, $state) {
-        if (window.currentUser) {
-          return window.currentUser;
-        }
-        // attach roles and user
+      user: ["UserService", "AclService", "$auth", "toastr", "$state", function user(UserService, AclService, $auth, toastr, $state) {
         return UserService.me().then(function (data) {
           _.flatMap(_.flatMap(data.data.roles), 'name').forEach(function (rol) {
             AclService.attachRole(rol);
           });
-          window.currentUser = data.data;
           return data.data;
         }, function (error) {
-          window.currentUser = null;
           $auth.removeToken();
           toastr.error(error.data.error, 'Estado!');
           $state.go('login');
         });
-        return window.currentUser;
-      }]
-    },
-    onExit: ["$rootScope", function onExit($rootScope) {
-      $rootScope.pusherChannel.unbind('carga-archivos');
-    }]
-  }).state('app.home', {
-    url: '/home',
-    controller: ["$auth", "data", function controller($auth, data) {
-      this.isAuthenticated = $auth.isAuthenticated;
-      this.data = data;
-    }],
-    controllerAs: 'vm',
-    data: {
-      title: 'Inicio'
-    },
-    template: require('./app/index.html'),
-    resolve: {
-      data: ["$http", function data($http) {
-        return [];
-        // return $http.get('/api/dashboard').then(function(data) {
-        //   return data.data;
-        // });
       }]
     }
-  }).state('app.csvs', {
-    url: '/archivo_cargas?page&tipo&fechaAsociada&estado&usuario',
-    controller: require('./archivo_cargas/ListController'),
+  }).state('app.home', {
+    url: '/home',
+    controller: ["$auth", function controller($auth) {
+      this.isAuthenticated = $auth.isAuthenticated;
+    }],
     controllerAs: 'vm',
-    template: require('./archivo_cargas/views/index.html'),
+    template: require('./app/index.html')
+  }).state('app.users', {
+    abstract: true,
+    url: '/users',
+    template: '<ui-view/>',
+    data: { title: 'Usuarios' }
+  }).state('app.users.index', {
+    url: '?page&name&email&roles',
+    data: { title: 'Listado' },
+    controller: require('./users/ListController'),
+    controllerAs: 'vm',
+    template: require('./users/views/index.html'),
     resolve: {
-      archivos: ["ArchivoCargaService", "$stateParams", function archivos(ArchivoCargaService, $stateParams) {
-        return ArchivoCargaService.filterResources($stateParams).then(function (data) {
+      users: ["UserService", "$stateParams", function users(UserService, $stateParams) {
+        return UserService.filterResources($stateParams).then(function (data) {
           return data.data;
         });
       }]
     }
-  }).state('app.profile', {
-    url: '/profile',
-    controller: require('./profile/ProfileController'),
+  }).state('app.users.create', {
+    url: '/create',
+    data: { title: 'Crear' },
+    controller: require('./users/CreateController'),
     controllerAs: 'vm',
-    template: require('./profile/form.html'),
-    data: {
-      title: 'Perfil'
+    template: require('./users/views/form.html'),
+    resolve: {
+      acl: ["AclService", "$q", function acl(AclService, $q) {
+        if (!AclService.hasRole('super-admin')) {
+          return $q.reject('Unauthorized');
+        }
+      }],
+      roles: ["RoleService", function roles(RoleService) {
+        return RoleService.getResources().then(function (data) {
+          return data.data.data;
+        });
+      }]
     }
+  }).state('app.users.edit', {
+    url: '/edit/:id',
+    data: { title: 'Editar' },
+    controller: require('./users/EditController'),
+    controllerAs: 'vm',
+    template: require('./users/views/form.html'),
+    resolve: {
+      acl: ["AclService", "$q", function acl(AclService, $q) {
+        if (!AclService.hasRole('super-admin')) {
+          return $q.reject('Unauthorized');
+        }
+      }],
+      data: ["UserService", "$stateParams", function data(UserService, $stateParams) {
+        return UserService.getResource($stateParams.id).then(function (data) {
+          return data.data;
+        });
+      }],
+      roles: ["RoleService", function roles(RoleService) {
+        return RoleService.getResources().then(function (data) {
+          return data.data.data;
+        });
+      }]
+    }
+  }).state('app.users.show', {
+    url: '/show/:id',
+    data: { title: 'Ver' },
+    controller: require('./users/ShowController'),
+    controllerAs: 'vm',
+    template: require('./users/views/show.html'),
+    resolve: {
+      data: ["UserService", "$stateParams", function data(UserService, $stateParams) {
+        return UserService.getResource($stateParams.id).then(function (data) {
+          return data.data;
+        });
+      }],
+      roles: ["RoleService", function roles(RoleService) {
+        return RoleService.getResources().then(function (data) {
+          return data.data.data;
+        });
+      }]
+    }
+  }).state('app.roles', {
+    abstract: true,
+    url: '/roles',
+    template: '<ui-view/>',
+    data: { title: 'Roles' }
+  }).state('app.roles.index', {
+    url: '?page&name&label&permissions',
+    data: { title: 'Listado' },
+    controller: require('./roles/ListController'),
+    controllerAs: 'vm',
+    template: require('./roles/views/index.html'),
+    resolve: {
+      roles: ["RoleService", "$stateParams", function roles(RoleService, $stateParams) {
+        return RoleService.filterResources($stateParams).then(function (data) {
+          return data.data;
+        });
+      }]
+    }
+  }).state('app.roles.create', {
+    url: '/create',
+    data: { title: 'Crear' },
+    controller: require('./roles/CreateController'),
+    controllerAs: 'vm',
+    template: require('./roles/views/form.html'),
+    resolve: {
+      acl: ["AclService", "$q", function acl(AclService, $q) {
+        if (!AclService.hasRole('super-admin')) {
+          return $q.reject('Unauthorized');
+        }
+      }],
+      permissions: ["PermissionService", function permissions(PermissionService) {
+        return PermissionService.all().then(function (data) {
+          return data.data;
+        });
+      }]
+    }
+  }).state('app.roles.edit', {
+    url: '/edit/:id',
+    data: { title: 'Editar' },
+    controllerAs: 'vm',
+    controller: require('./roles/EditController'),
+    template: require('./roles/views/form.html'),
+    resolve: {
+      acl: ["AclService", "$q", function acl(AclService, $q) {
+        if (!AclService.hasRole('super-admin')) {
+          return $q.reject('Unauthorized');
+        }
+      }],
+      role: ["RoleService", "$stateParams", function role(RoleService, $stateParams) {
+        return RoleService.getResource($stateParams.id).then(function (data) {
+          return data.data;
+        });
+      }],
+      permissions: ["PermissionService", function permissions(PermissionService) {
+        return PermissionService.all().then(function (data) {
+          return data.data;
+        });
+      }]
+    }
+  }).state('app.regions', {
+    abstract: true,
+    url: '/regiones',
+    template: '<ui-view/>',
+    data: { title: 'Regiones' }
+  }).state('app.regions.index', {
+    url: '?page&name&code',
+    data: { title: 'Listado' },
+    controller: require('./regions/ListController'),
+    controllerAs: 'vm',
+    template: require('./regions/views/index.html'),
+    resolve: {
+      regions: ["RegionService", "$stateParams", function regions(RegionService, $stateParams) {
+        return RegionService.filterResources($stateParams).then(function (data) {
+          return data.data;
+        });
+      }]
+    }
+  }).state('app.regions.create', {
+    url: '/create',
+    data: { title: 'Crear' },
+    controller: require('./regions/CreateController'),
+    controllerAs: 'vm',
+    template: require('./regions/views/form.html'),
+    resolve: {
+      acl: ["AclService", "$q", function acl(AclService, $q) {
+        if (!AclService.hasRole('super-admin')) {
+          return $q.reject('Unauthorized');
+        }
+      }]
+    }
+  }).state('app.regions.edit', {
+    url: '/edit/:id',
+    data: { title: 'Editar' },
+    controller: require('./regions/EditController'),
+    controllerAs: 'vm',
+    template: require('./regions/views/form.html'),
+    resolve: {
+      acl: ["AclService", "$q", function acl(AclService, $q) {
+        if (!AclService.hasRole('super-admin')) {
+          return $q.reject('Unauthorized');
+        }
+      }],
+      data: ["RegionService", "$stateParams", function data(RegionService, $stateParams) {
+        return RegionService.getResource($stateParams.id).then(function (data) {
+          return data.data;
+        });
+      }]
+    }
+  }).state('app.serviciosSalud', {
+    abstract: true,
+    url: '/serviciosSalud',
+    template: '<ui-view/>',
+    data: { title: 'Servicios de Salud' }
+  }).state('app.serviciosSalud.index', (_$stateProvider$state = {
+    url: '?page&name&code&region',
+    data: { title: 'Listado' },
+    controller: require('./serviciosSalud/ListController'),
+    controllerAs: 'vm',
+    template: require('./serviciosSalud/views/index.html')
+  }, _defineProperty(_$stateProvider$state, 'data', { title: 'Listado' }), _defineProperty(_$stateProvider$state, 'resolve', {
+    serviciosSalud: function serviciosSalud(ServicioSaludService, $stateParams) {
+      return ServicioSaludService.filterResources($stateParams).then(function (data) {
+        return data.data;
+      });
+    }
+  }), _$stateProvider$state)).state('app.serviciosSalud.create', {
+    url: '/create',
+    data: { title: 'Crear' },
+    controller: require('./serviciosSalud/CreateController'),
+    controllerAs: 'vm',
+    template: require('./serviciosSalud/views/form.html'),
+    resolve: {
+      acl: ["AclService", "$q", function acl(AclService, $q) {
+        if (!AclService.hasRole('super-admin')) {
+          return $q.reject('Unauthorized');
+        }
+      }],
+      regions: ["RegionService", function regions(RegionService) {
+        return RegionService.getResources().then(function (data) {
+          return data.data;
+        });
+      }]
+    }
+  }).state('app.serviciosSalud.edit', {
+    url: '/edit/:id',
+    data: { title: 'Editar' },
+    controller: require('./serviciosSalud/EditController'),
+    controllerAs: 'vm',
+    template: require('./serviciosSalud/views/form.html'),
+    resolve: {
+      acl: ["AclService", "$q", function acl(AclService, $q) {
+        if (!AclService.hasRole('super-admin')) {
+          return $q.reject('Unauthorized');
+        }
+      }],
+      data: ["ServicioSaludService", "$stateParams", function data(ServicioSaludService, $stateParams) {
+        return ServicioSaludService.getResource($stateParams.id).then(function (data) {
+          return data.data;
+        });
+      }],
+      regions: ["RegionService", function regions(RegionService) {
+        return RegionService.getResources().then(function (data) {
+          return data.data;
+        });
+      }]
+    }
+  }).state('app.comunas', {
+    abstract: true,
+    url: '/comunas',
+    template: '<ui-view/>',
+    data: { title: 'Comunas' }
+  }).state('app.comunas.index', {
+    url: '?page&name&code&servicio',
+    data: { title: 'Listado' },
+    controller: require('./comunas/ListController'),
+    controllerAs: 'vm',
+    template: require('./comunas/views/index.html'),
+    resolve: {
+      comunas: ["ComunaService", "$stateParams", function comunas(ComunaService, $stateParams) {
+        return ComunaService.filterResources($stateParams).then(function (data) {
+          return data.data;
+        });
+      }]
+    }
+  }).state('app.comunas.create', {
+    url: '/create',
+    data: { title: 'Crear' },
+    controller: require('./comunas/CreateController'),
+    controllerAs: 'vm',
+    template: require('./comunas/views/form.html'),
+    resolve: {
+      acl: ["AclService", "$q", function acl(AclService, $q) {
+        if (!AclService.hasRole('super-admin')) {
+          return $q.reject('Unauthorized');
+        }
+      }],
+      servicios: ["ServicioSaludService", function servicios(ServicioSaludService) {
+        return ServicioSaludService.getResources().then(function (data) {
+          return data.data;
+        });
+      }]
+    }
+  }).state('app.comunas.edit', {
+    url: '/edit/:id',
+    data: { title: 'Editar' },
+    controller: require('./comunas/EditController'),
+    controllerAs: 'vm',
+    template: require('./comunas/views/form.html'),
+    resolve: {
+      acl: ["AclService", "$q", function acl(AclService, $q) {
+        if (!AclService.hasRole('super-admin')) {
+          return $q.reject('Unauthorized');
+        }
+      }],
+      data: ["ComunaService", "$stateParams", function data(ComunaService, $stateParams) {
+        return ComunaService.getResource($stateParams.id).then(function (data) {
+          return data.data;
+        });
+      }],
+      servicios: ["ServicioSaludService", function servicios(ServicioSaludService) {
+        return ServicioSaludService.getResources().then(function (data) {
+          return data.data;
+        });
+      }]
+    }
+  }).state('app.establecimientos', {
+    abstract: true,
+    url: '/establecimientos',
+    template: '<ui-view/>',
+    data: { title: 'Establecimientos' }
+  }).state('app.establecimientos.index', {
+    url: '?page&name&code&servicio',
+    data: { title: 'Listado' },
+    controller: require('./establecimientos/ListController'),
+    controllerAs: 'vm',
+    template: require('./establecimientos/views/index.html'),
+    resolve: {
+      establecimientos: ["EstablecimientoService", "$stateParams", function establecimientos(EstablecimientoService, $stateParams) {
+        return EstablecimientoService.filterResources($stateParams).then(function (data) {
+          return data.data;
+        });
+      }]
+    }
+  }).state('app.establecimientos.create', {
+    url: '/create',
+    data: { title: 'Crear' },
+    controller: require('./establecimientos/CreateController'),
+    controllerAs: 'vm',
+    template: require('./establecimientos/views/form.html'),
+    resolve: {
+      acl: ["AclService", "$q", function acl(AclService, $q) {
+        if (!AclService.hasRole('super-admin')) {
+          return $q.reject('Unauthorized');
+        }
+      }],
+      comunas: ["ComunaService", function comunas(ComunaService) {
+        return ComunaService.getResources().then(function (data) {
+          return data.data;
+        });
+      }]
+    }
+  }).state('app.establecimientos.edit', {
+    url: '/edit/:id',
+    data: { title: 'Editar' },
+    controller: require('./establecimientos/EditController'),
+    controllerAs: 'vm',
+    template: require('./establecimientos/views/form.html'),
+    resolve: {
+      acl: ["AclService", "$q", function acl(AclService, $q) {
+        if (!AclService.hasRole('super-admin')) {
+          return $q.reject('Unauthorized');
+        }
+      }],
+      data: ["EstablecimientoService", "$stateParams", function data(EstablecimientoService, $stateParams) {
+        return EstablecimientoService.getResource($stateParams.id).then(function (data) {
+          return data.data;
+        });
+      }],
+      comunas: ["ComunaService", function comunas(ComunaService) {
+        return ComunaService.getResources().then(function (data) {
+          return data.data;
+        });
+      }]
+    }
+  }).state('root', {
+    url: '/',
+    external: true
   });
 
   $urlRouterProvider.otherwise('/login');
 }];
 
-},{"./app/index.html":45,"./archivo_cargas/ListController":48,"./archivo_cargas/views/index.html":52,"./auth/LoginController":54,"./auth/LogoutController":55,"./auth/RegisterController":56,"./auth/login.html":57,"./auth/register.html":58,"./layout/layout.html":65,"./profile/ProfileController":67,"./profile/form.html":68}],70:[function(require,module,exports){
+},{"./app/index.html":38,"./auth/LoginController":39,"./auth/LogoutController":40,"./auth/login.html":41,"./comunas/CreateController":43,"./comunas/EditController":44,"./comunas/ListController":45,"./comunas/views/form.html":46,"./comunas/views/index.html":47,"./establecimientos/CreateController":51,"./establecimientos/EditController":52,"./establecimientos/ListController":54,"./establecimientos/views/form.html":55,"./establecimientos/views/index.html":56,"./layout/layout.html":59,"./regions/CreateController":62,"./regions/EditController":63,"./regions/ListController":64,"./regions/views/form.html":66,"./regions/views/index.html":67,"./roles/CreateController":68,"./roles/EditController":69,"./roles/ListController":70,"./roles/views/form.html":72,"./roles/views/index.html":73,"./serviciosSalud/CreateController":77,"./serviciosSalud/EditController":78,"./serviciosSalud/ListController":79,"./serviciosSalud/views/form.html":81,"./serviciosSalud/views/index.html":82,"./users/CreateController":83,"./users/EditController":84,"./users/ListController":85,"./users/ShowController":86,"./users/views/form.html":88,"./users/views/index.html":89,"./users/views/show.html":90}],75:[function(require,module,exports){
 'use strict';
 
 module.exports = ["$http", function ($http) {
@@ -100761,7 +90496,7 @@ module.exports = ["$http", function ($http) {
 	}
 }];
 
-},{}],71:[function(require,module,exports){
+},{}],76:[function(require,module,exports){
 'use strict';
 
 module.exports = ["SweetAlert", function (SweetAlert) {
@@ -100786,19 +90521,277 @@ module.exports = ["SweetAlert", function (SweetAlert) {
   };
 }];
 
-},{}],72:[function(require,module,exports){
+},{}],77:[function(require,module,exports){
 'use strict';
 
-module.exports = ["$http", function ($http) {
+module.exports = ["ServicioSaludService", "regions", "$state", "toastr", function (ServicioSaludService, regions, $state, toastr) {
   'ngInject';
 
-  this.me = function () {
-    return $http.get('/api/me');
+  var vm = this;
+  vm.action = 'Crear';
+  vm.errors = {};
+  vm.formIsSubmit = false;
+  vm.regions = regions;
+  vm.data = {};
+
+  this.submitForm = function () {
+    vm.formIsSubmit = true;
+
+    ServicioSaludService.createResource(vm.data).then(function (data) {
+      toastr.success(data.data.message, 'Estado!');
+      $state.go('app.serviciosSalud.index', {}, { reload: true });
+    }).catch(function (errors) {
+      vm.errors = errors.data;
+    }).finally(function () {
+      vm.formIsSubmit = false;
+    });
   };
 
-  this.changePassword = function (data) {
-    return $http.post('/api/changePassword', data);
+  this.hasError = function (property) {
+    return vm.errors.hasOwnProperty(property);
   };
 }];
 
-},{}]},{},[43]);
+},{}],78:[function(require,module,exports){
+'use strict';
+
+module.exports = ["data", "regions", "ServicioSaludService", "$state", "toastr", function (data, regions, ServicioSaludService, $state, toastr) {
+  'ngInject';
+
+  var vm = this;
+  vm.action = 'Editar';
+  vm.data = data;
+  vm.regions = regions;
+  vm.errors = {};
+  vm.formIsSubmit = false;
+
+  this.submitForm = function () {
+    vm.formIsSubmit = true;
+
+    ServicioSaludService.updateResource(vm.data.id, vm.data).then(function (data) {
+      toastr.success(data.data.message, 'Estado!');
+      $state.go('app.serviciosSalud.index', {}, { reload: true });
+    }).catch(function (errors) {
+      vm.errors = errors.data;
+    }).finally(function () {
+      vm.formIsSubmit = false;
+    });
+  };
+
+  this.hasError = function (property) {
+    return vm.errors.hasOwnProperty(property);
+  };
+}];
+
+},{}],79:[function(require,module,exports){
+'use strict';
+
+module.exports = ["serviciosSalud", "ServicioSaludService", "toastr", "Confirm", "$state", "$stateParams", "AclService", function (serviciosSalud, ServicioSaludService, toastr, Confirm, $state, $stateParams, AclService) {
+  'ngInject';
+
+  var vm = this;
+  vm.serviciosSalud = serviciosSalud.data;
+  vm.totalItems = serviciosSalud.total;
+  vm.itemsPerPage = serviciosSalud.per_page;
+  vm.search = $stateParams;
+  vm.page = serviciosSalud.current_page;
+  vm.reload = false;
+  vm.hasRole = AclService.hasRole;
+
+  vm.destroy = function (id, index) {
+    Confirm.destroy(function () {
+      vm.deleteServicioSalud(id, index);
+    });
+  };
+
+  vm.deleteServicioSalud = function (id, index) {
+    ServicioSaludService.deleteResource(id).then(function (data) {
+      toastr.success(data.data.message, 'Estado!');
+      $state.reload();
+    }).catch(function (errors) {
+      vm.errors = errors.data;
+    });
+  };
+
+  vm.filter = function (page) {
+    vm.search.page = page || 1;
+    $state.go('.', vm.search, { reload: true });
+    vm.reload = true;
+  };
+}];
+
+},{}],80:[function(require,module,exports){
+'use strict';
+
+module.exports = ["ApiService", "$http", function (ApiService, $http) {
+  'ngInject';
+
+  angular.extend(this, ApiService);
+  this.resource = 'serviciosSalud';
+}];
+
+},{}],81:[function(require,module,exports){
+module.exports = '<div class=\'row\'>\n    <div class="col-sm-12 col-md-12 col-lg-12">\n        <div class="jarviswidget jarviswidget-color-blueDark" id="user-form">\n            <header>\n                <span class="widget-icon"> <i class="fa" ng-class="{\'fa-plus\': vm.action == \'Crear\', \'fa-edit\': vm.action == \'Editar\'}"></i> </span>\n                <h2>{{ vm.action }} Servicio de Salud</h2>\n            </header>\n\n            <div>\n                <div class="widget-body">\n                    <form class="form-horizontal" role="form" method="POST" novalidate>\n\n                        <div class="form-group" ng-class="{\'has-error\': vm.hasError(\'name\')}">\n                            <label class="col-md-4 control-label">Name</label>\n\n                            <div class="col-md-6">\n                                <input type="text" class="form-control" ng-model="vm.data.name">\n\n                                <span ng-if="vm.hasError(\'name\')" class="help-block">\n                                    <strong>{{ vm.errors.name[0] }}</strong>\n                                </span>\n                            </div>\n                        </div>\n\n                        <div class="form-group" ng-class="{\'has-error\': vm.hasError(\'code\')}">\n                            <label class="col-md-4 control-label">Codigo</label>\n\n                            <div class="col-md-6">\n                                <input type="text" class="form-control" ng-model="vm.data.code">\n\n                                <span ng-if="vm.hasError(\'code\')" class="help-block">\n                                    <strong>{{ vm.errors.code[0] }}</strong>\n                                </span>\n                            </div>\n                        </div>\n\n                        <div class="form-group" ng-class="{\'has-error\': vm.hasError(\'region_id\')}">\n                            <label class="col-md-4 control-label">Region</label>\n\n                            <div class="col-md-6">\n\n                                <ui-select ng-model="vm.data.region_id">\n                                    <ui-select-match placeholder="Seleccione region...">\n                                        {{$select.selected.name}}\n                                    </ui-select-match>\n                                    <ui-select-choices repeat="region.id as region in (vm.regions | filter: $select.search) track by $index">\n                                        <span ng-bind="region.name"></span>\n                                    </ui-select-choices>\n                                </ui-select>\n\n                                <span ng-if="vm.hasError(\'region_id\')" class="help-block">\n                                    <strong>{{ vm.errors.region_id[0] }}</strong>\n                                </span>\n                            </div>\n                        </div>\n\n                        <div class="form-group">\n                            <div class="col-md-6 col-md-offset-4">\n                                <button ng-click="vm.submitForm()" class="btn btn-primary">\n                                    <i ng-class="{\'fa-user\': !vm.formIsSubmit, \'fa-spinner fa-spin\': vm.formIsSubmit }" class="fa fa-btn "></i> {{ vm.action }}\n                                </button>\n                            </div>\n                        </div>\n                    </form>\n                </div>\n            </div>\n        </div>\n    </div>\n</div>\n';
+},{}],82:[function(require,module,exports){
+module.exports = '<ui-view>\n    <div class=\'row\'>\n        <div class="col-sm-12 col-md-12 col-lg-12">\n            <div class=\'pull-right\'>\n                <a ui-sref=\'app.serviciosSalud.create\' ng-hide="vm.hasRole(\'admin\')" class=\'btn btn-primary\'>Nuevo servicio de salud</a>\n            </div>\n        </div>\n    </div>\n\n    <br>\n\n    <div class=\'row\'>\n        <article class="col-sm-12 col-md-12 col-lg-12">\n            <div class="jarviswidget jarviswidget-color-blueDark" id="users-table">\n                <header>\n                    <span class="widget-icon"> <i class="fa fa-table"></i> </span>\n                    <h2>Listado de servicios de salud</h2>\n                </header>\n\n                <div>\n                    <div class="widget-body">\n                        <table class=\'table table-bordered\'>\n                            <thead>\n                                <tr>\n                                    <th style="width:150px">Codigo</th>\n                                    <th>Nombre</th>\n                                    <th>Region</th>\n                                    <th  ng-hide="vm.hasRole(\'admin\')" class=\'action-column\'>Acciones</th>\n                                </tr>\n                            </thead>\n                            <tbody>\n                                <tr>\n                                    <td> <input ng-model="vm.search.code" ng-blur="vm.filter()" ng-enter="vm.filter()" type="text" class="form-control" placeholder="codigo"></input> </td>\n                                    <td> <input ng-model="vm.search.name" ng-blur="vm.filter()" ng-enter="vm.filter()" type="text" class="form-control" placeholder="nombre"></input> </td>\n                                    <td> <input ng-model="vm.search.region" ng-blur="vm.filter()" ng-enter="vm.filter()" type="text" class="form-control" placeholder="region"></input> </td>\n                                    <td  ng-hide="vm.hasRole(\'admin\')">\n                                </tr>\n                                <tr ng-repeat="servicioSalud in vm.serviciosSalud" ng-hide="vm.reload">\n                                    <td>{{ ::servicioSalud.code }}</td>\n                                    <td>{{ ::servicioSalud.name }}</td>\n                                    <td>{{ ::servicioSalud.region.name }}</td>\n                                    <td  ng-hide="vm.hasRole(\'admin\')">\n                                        <a ui-sref="app.serviciosSalud.edit({id: servicioSalud.id})" class="btn btn-warning btn-xs"><i class=\'fa fa-pencil\'></i></a>\n                                        <a ng-click="vm.destroy(servicioSalud.id, $index)" class=\'btn btn-danger btn-xs\'><i class=\'fa fa-trash\'></i></a>\n                                    </td>\n                                </tr>\n                            </tbody>\n                        </table>\n\n                        <div ng-if=\'vm.reload\' class=\'text-center\'>\n                            <i class="fa fa-2x fa-spinner fa-spin"></i>\n                        </div>\n\n                        <div ng-hide="vm.reload" ng-if="vm.serviciosSalud | isEmpty" class=\'text-center\'>\n                            Sin resultados\n                        </div>\n\n                        <div ng-hide="vm.reload" ng-if="! (vm.serviciosSalud | isEmpty)" class=\'text-center\'>\n                            <ul uib-pagination items-per-page="vm.itemsPerPage" max-size="10" boundary-link-numbers="true" rotate="false" force-ellipses="true" total-items="vm.totalItems" ng-model="vm.page" ng-change="vm.filter(vm.page)"></ul>\n                        </div>\n\n                    </div>\n                </div>\n            </div>\n        </article>\n    </div>\n</ui-view>\n';
+},{}],83:[function(require,module,exports){
+'use strict';
+
+module.exports = ["roles", "UserService", "$state", "toastr", function (roles, UserService, $state, toastr) {
+  'ngInject';
+
+  var vm = this;
+  vm.action = 'Crear';
+  vm.roles = roles;
+  vm.errors = {};
+  vm.formIsSubmit = false;
+  vm.data = {
+    name: '',
+    email: '',
+    password: '',
+    password_confirmation: '',
+    roles: []
+  };
+
+  this.hasError = function (property) {
+    if (vm.errors.hasOwnProperty(property)) {
+      return true;
+    }
+    return false;
+  };
+
+  this.submitForm = function () {
+    vm.formIsSubmit = true;
+
+    UserService.createResource(vm.data).then(function (data) {
+      toastr.success(data.data.message, 'Estado!');
+      $state.go('app.users.index', {}, { reload: true });
+    }).catch(function (errors) {
+      vm.errors = errors.data;
+    }).finally(function () {
+      vm.formIsSubmit = false;
+    });
+  };
+}];
+
+},{}],84:[function(require,module,exports){
+'use strict';
+
+module.exports = ["data", "roles", "UserService", "$state", "$stateParams", "toastr", function (data, roles, UserService, $state, $stateParams, toastr) {
+  'ngInject';
+
+  var vm = this;
+  vm.action = 'Editar';
+  vm.data = data;
+  vm.roles = roles;
+  vm.errors = {};
+  vm.formIsSubmit = false;
+
+  this.hasError = function (property) {
+    if (vm.errors.hasOwnProperty(property)) {
+      return true;
+    }
+    return false;
+  };
+
+  this.submitForm = function () {
+    vm.formIsSubmit = true;
+
+    UserService.updateResource(vm.getId(), vm.data).then(function (data) {
+      toastr.success(data.data.message, 'Estado!');
+      $state.go('app.users.index', {}, { reload: true });
+    }).catch(function (errors) {
+      vm.errors = errors.data;
+    }).finally(function () {
+      vm.formIsSubmit = false;
+    });
+  };
+
+  this.getId = function () {
+    return $stateParams.id;
+  };
+}];
+
+},{}],85:[function(require,module,exports){
+'use strict';
+
+module.exports = ["users", "UserService", "toastr", "Confirm", "$state", "$stateParams", "AclService", function (users, UserService, toastr, Confirm, $state, $stateParams, AclService) {
+  'ngInject';
+
+  var vm = this;
+  vm.users = users.data;
+  vm.totalItems = users.total;
+  vm.itemsPerPage = users.per_page;
+  vm.search = $stateParams;
+  vm.page = users.current_page;
+  vm.reload = false;
+  vm.hasRole = AclService.hasRole;
+
+  vm.filter = function (page) {
+    vm.search.page = page || 1;
+    $state.go('.', vm.search, { reload: true });
+    vm.reload = true;
+  };
+
+  vm.destroy = function (id, index) {
+    Confirm.destroy(function () {
+      vm.deleteUser(id, index);
+    });
+  };
+
+  vm.deleteUser = function (id, index) {
+    UserService.deleteResource(id).then(function (data) {
+      toastr.success(data.data.message, 'Estado!');
+      vm.removeFromUsers(index);
+    }).catch(function (errors) {
+      vm.errors = errors.data;
+    });
+  };
+
+  vm.removeFromUsers = function (index) {
+    vm.users.splice(index, 1);
+  };
+}];
+
+},{}],86:[function(require,module,exports){
+'use strict';
+
+module.exports = ["data", "roles", function (data, roles) {
+  'ngInject';
+
+  var vm = this;
+  vm.data = data;
+  vm.roles = roles;
+  vm.classRoles = {
+    'solicitante': 'primary',
+    'super-admin': 'info',
+    'admin': 'success'
+  };
+  vm.nameRoles = {
+    'solicitante': 'Solicitante',
+    'super-admin': 'Super Administrador',
+    'admin': 'Administrador'
+  };
+}];
+
+},{}],87:[function(require,module,exports){
+'use strict';
+
+module.exports = ["ApiService", "$http", function (ApiService, $http) {
+  'ngInject';
+
+  angular.extend(this, ApiService);
+  this.resource = 'users';
+
+  this.me = function () {
+    return $http.get('/api/admin/me');
+  };
+}];
+
+},{}],88:[function(require,module,exports){
+module.exports = '<div class=\'row\'>\n    <div class="col-sm-12 col-md-12 col-lg-12">\n        <div class="jarviswidget jarviswidget-color-blueDark" id="user-form">\n            <header>\n                <span class="widget-icon"> <i class="fa" ng-class="{\'fa-plus\': vm.action == \'Crear\', \'fa-edit\': vm.action == \'Editar\'}"></i> </span>\n                <h2>{{ vm.action }} Usuario</h2>\n            </header>\n\n            <div>\n                <div class="widget-body">\n                    <form class="form-horizontal" role="form" method="POST" novalidate>\n\n                        <div class="form-group" ng-class="{\'has-error\': vm.hasError(\'name\')}">\n                            <label class="col-md-4 control-label">Name</label>\n\n                            <div class="col-md-6">\n                                <input type="text" class="form-control" ng-model="vm.data.name">\n\n                                <span ng-if="vm.hasError(\'name\')" class="help-block">\n                                    <strong>{{ vm.errors.name[0] }}</strong>\n                                </span>\n                            </div>\n                        </div>\n\n                        <div class="form-group" ng-class="{\'has-error\': vm.hasError(\'email\')}">\n                            <label class="col-md-4 control-label">E-Mail</label>\n\n                            <div class="col-md-6">\n                                <input type="text" class="form-control" ng-model="vm.data.email">\n\n                                <span ng-if="vm.hasError(\'email\')" class="help-block">\n                                    <strong>{{ vm.errors.email[0] }}</strong>\n                                </span>\n                            </div>\n                        </div>\n\n                        <div class="form-group" ng-class="{\'has-error\': vm.hasError(\'cargo\')}">\n                            <label class="col-md-4 control-label">Cargo</label>\n\n                            <div class="col-md-6">\n                                <input type="text" class="form-control" ng-model="vm.data.cargo">\n\n                                <span ng-if="vm.hasError(\'cargo\')" class="help-block">\n                                    <strong>{{ vm.errors.cargo[0] }}</strong>\n                                </span>\n                            </div>\n                        </div>\n\n                        <div class="form-group" ng-class="{\'has-error\': vm.hasError(\'telefono\')}">\n                            <label class="col-md-4 control-label">Telefono</label>\n\n                            <div class="col-md-6">\n                                <input type="text" class="form-control" ng-model="vm.data.telefono">\n\n                                <span ng-if="vm.hasError(\'telefono\')" class="help-block">\n                                    <strong>{{ vm.errors.telefono[0] }}</strong>\n                                </span>\n                            </div>\n                        </div>\n\n                        <div class="form-group" ng-class="{\'has-error\': vm.hasError(\'password\')}">\n                            <label class="col-md-4 control-label">Password</label>\n\n                            <div class="col-md-6">\n                                <input type="password" class="form-control" ng-model="vm.data.password">\n\n                                <span ng-if="vm.hasError(\'password\')" class="help-block">\n                                    <strong>{{ vm.errors.password[0] }}</strong>\n                                </span>\n                            </div>\n                        </div>\n\n                        <div class="form-group" ng-class="{\'has-error\': vm.hasError(\'password_confirmation\')}">\n                            <label class="col-md-4 control-label">Confirmar Password</label>\n\n                            <div class="col-md-6">\n                                <input type="password" class="form-control" ng-model="vm.data.password_confirmation">\n\n                                <span ng-if="vm.hasError(\'password_confirmation\')" class="help-block">\n                                    <strong>{{ vm.errors.password_confirmation[0] }}</strong>\n                                </span>\n                            </div>\n                        </div>\n\n                        <div class="form-group" ng-class="{\'has-error\': vm.hasError(\'roles\')}">\n                            <label class="col-md-4 control-label">Roles</label>\n\n                            <div class="col-md-6">\n\n                                <ui-select multiple ng-model="vm.data.roles">\n                                    <ui-select-match placeholder="Selecciona roles...">\n                                        {{$item.label}}\n                                    </ui-select-match>\n                                    <ui-select-choices repeat="role.name as role in (vm.roles | filter: $select.search) track by $index">\n                                        <span ng-bind="role.label"></span>\n                                    </ui-select-choices>\n                                </ui-select>\n\n                                <span ng-if="vm.hasError(\'roles\')" class="help-block">\n                                    <strong>{{ vm.errors.roles[0] }}</strong>\n                                </span>\n                            </div>\n                        </div>\n\n                        <div class="form-group">\n                            <div class="col-md-6 col-md-offset-4">\n                                <button ng-click="vm.submitForm()" class="btn btn-primary">\n                                    <i ng-class="{\'fa-user\': !vm.formIsSubmit, \'fa-spinner fa-spin\': vm.formIsSubmit }" class="fa fa-btn "></i> {{ vm.action }}\n                                </button>\n                            </div>\n                        </div>\n                    </form>\n                </div>\n            </div>\n        </div>\n    </div>\n</div>\n';
+},{}],89:[function(require,module,exports){
+module.exports = '<ui-view>\n    <div class=\'row\'>\n        <div class="col-sm-12 col-md-12 col-lg-12">\n            <div class=\'pull-right\'>\n                <a ui-sref=\'app.users.create\' ng-hide="vm.hasRole(\'admin\')" class=\'btn btn-primary\'>Nuevo Usuario</a>\n            </div>\n        </div>\n    </div>\n\n    <br>\n\n    <div class=\'row\'>\n        <article class="col-sm-12 col-md-12 col-lg-12">\n            <div class="jarviswidget jarviswidget-color-blueDark" id="users-table">\n                <header>\n                    <span class="widget-icon"> <i class="fa fa-table"></i> </span>\n                    <h2>Listado usuarios</h2>\n                </header>\n\n                <div>\n                    <div class="widget-body">\n                        <table class=\'table table-bordered\'>\n                            <thead>\n                                <tr>\n                                    <th>Nombre</th>\n                                    <th>Email</th>\n                                    <th>Cargo</th>\n                                    <th>Telefono</th>\n                                    <th>Roles</th>\n                                    <th ng-hide="vm.hasRole(\'admin\')" class=\'action-column\'>Acciones</th>\n                                </tr>\n                            </thead>\n                            <tbody>\n                                <tr>\n                                    <td> <input ng-model="vm.search.name" ng-blur="vm.filter()" ng-enter="vm.filter()" type="text" class="form-control" placeholder="nombre"></input> </td>\n                                    <td> <input ng-model="vm.search.email" ng-blur="vm.filter()" ng-enter="vm.filter()" type="text" class="form-control" placeholder="email"></input> </td>\n                                    <td> <input ng-model="vm.search.cargo" ng-blur="vm.filter()" ng-enter="vm.filter()" type="text" class="form-control" placeholder="cargo"></input> </td>\n                                    <td> <input ng-model="vm.search.telefono" ng-blur="vm.filter()" ng-enter="vm.filter()" type="text" class="form-control" placeholder="telefono"></input> </td>\n                                    <td> <input ng-model="vm.search.roles" ng-blur="vm.filter()" ng-enter="vm.filter()" type="text" class="form-control" placeholder="rol"></input> </td>\n                                    <td ng-hide="vm.hasRole(\'admin\')"></td>\n                                </tr>\n                                <tr ng-repeat="user in vm.users" ng-hide="vm.reload">\n                                    <td>{{ ::user.name }}</td>\n                                    <td>{{ ::user.email }}</td>\n                                    <td>{{ ::user.cargo }}</td>\n                                    <td>{{ ::user.telefono }}</td>\n                                    <td>\n                                        <span ng-repeat="role in user.roles">\n                                            <span class=\'label label-primary\'>{{ ::role.label }}</span>\n                                        </span>\n                                    </td>\n                                    <td ng-hide="vm.hasRole(\'admin\')">\n                                        <a ui-sref="app.users.edit({id: user.id})" class="btn btn-warning btn-xs"><i class=\'fa fa-pencil\'></i></a>\n                                        <a ng-click="vm.destroy(user.id, $index)" class=\'btn btn-danger btn-xs\'><i class=\'fa fa-trash\'></i></a>\n                                    </td>\n                                </tr>\n                            </tbody>\n                        </table>\n\n                        <div ng-if=\'vm.reload\' class=\'text-center\'>\n                            <i class="fa fa-2x fa-spinner fa-spin"></i>\n                        </div>\n\n                        <div ng-hide="vm.reload" ng-if="vm.users | isEmpty" class=\'text-center\'>\n                            Sin resultados\n                        </div>\n\n                        <div ng-hide="vm.reload" ng-if="! (vm.users | isEmpty)" class=\'text-center\'>\n                            <ul uib-pagination items-per-page="vm.itemsPerPage" max-size="10" boundary-link-numbers="true" rotate="false" force-ellipses="true" total-items="vm.totalItems" ng-model="vm.page" ng-change="vm.filter(vm.page)"></ul>\n                        </div>\n\n                    </div>\n                </div>\n            </div>\n        </article>\n    </div>\n</ui-view>\n';
+},{}],90:[function(require,module,exports){
+module.exports = '<div class="col-sm-6">\n    <h1 class=\'capitalize\'> <span class="semi-bold">{{ vm.data.name }} </span>\n        <br>\n        <small> {{ vm.data.cargo }}</small></h1>\n\n    <ul class="list-unstyled">\n        <li>\n            <p class="text-muted">\n                <i class="fa fa-phone"></i>&nbsp;&nbsp; <span class="txt-color-darken"> {{ vm.data.telefono }}</span>\n            </p>\n        </li>\n        <li>\n            <p class="text-muted">\n                <i class="fa fa-envelope"></i>&nbsp;&nbsp;<a href="javascript:void(0);">{{ vm.data.email }}</a>\n            </p>\n        </li>\n        <li>\n            <p class="text-muted">\n                <span ng-repeat="rol in vm.data.roles" class="label label-{{ vm.classRoles[rol]}}">\n                    {{ ::vm.nameRoles[rol] }}\n                </span>\n            </p>\n        </li>\n    </ul>\n    <br>\n</div>\n';
+},{}]},{},[36]);

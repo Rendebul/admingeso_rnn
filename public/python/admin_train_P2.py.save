@@ -319,7 +319,7 @@ def leer_todos_csv():
         with open(archivo_leer.replace("\n", "").replace(".xlsx","-out.csv"), 'rb') as f:
             reader = csv.reader(f)
             your_list = list(reader)
-            celdas_totales_csv.extend(your_list)
+            celdas_t	otales_csv.extend(your_list)
     return celdas_totales_csv   
         
 def main():
@@ -338,7 +338,7 @@ def main():
     cursor.execute(query)
     records = cursor.fetchall()
     #records = leer_todos_csv()
-    print ("Numero de puntos a procesar: "+str(len(records)))
+    print "Numero de puntos a procesar: "+str(len(records))
     #print records[0]
     
     l_recorridos = iterarDatos(records)

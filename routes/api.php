@@ -3,8 +3,8 @@
 use Illuminate\Http\Request;
 
 Route::get('datosGPS', function(){
-	dd(request()->all());
-	return ['tiempo'=>55];
+	//dd(request()->all());
+	return ['tiempo'=>76];
 });
 
 Route::group(['middleware' => ['auth:api', 'admin'], 'namespace' => 'Api'], function () {

@@ -3,6 +3,7 @@ public/archivo_cargas
 /public/storage
 /public/css
 /public/js
+public/python/__pycache__
 /vendor
 /.idea
 Homestead.json
