@@ -8,6 +8,8 @@ import csv
 from datetime import datetime
 
 
+
+
 lista_puntos = []
 lista_recorridos = []
 bRecorridoV = False
@@ -301,7 +303,7 @@ def prepTrain(l_recorridos_filtrados,MAX_RECORRIDOS):
 
 def leer_csv():
 	celdas_totales_csv = []
-	with open("/var/www/laravel/public/python/1-10-Janeiro-Belem-out.csv", 'r') as f:
+	with open("1-10-Janeiro-Belem-out.csv", 'r') as f:
 			reader = csv.reader(f)
 			your_list = list(reader)
 			celdas_totales_csv.extend(your_list)
@@ -312,14 +314,14 @@ def leer_todos_csv():
 	celdas_totales_csv = []
 
 	#Lista de archivos a leer
-	archivos = open("/var/www/laravel/public/python/nombres_csv_procesar.txt",'r')
+	archivos = open("nombres_csv_procesar.txt",'r')
 
 	for archivo in archivos:
 		lista_archivos.append(archivo)
 	archivos.close()
 
 	for archivo_leer in lista_archivos:
-		with open(("/var/www/laravel/public/python/"+archivo_leer.replace("\n", "").replace(".xlsx","-out.csv")), 'r') as f:
+		with open(archivo_leer.replace("\n", "").replace(".xlsx","-out.csv"), 'r') as f:
 			reader = csv.reader(f)
 			your_list = list(reader)
 			celdas_totales_csv.extend(your_list)
@@ -428,11 +430,12 @@ def main():
 			redNeuronalRecurrente = pyrenn.loadNN('rnn_5_entradas.csv')
 			#se debe trasponer la matriz de entradas creada, aunque solo sea un set de entrada el que se consulta
 			print("Entrada de la red: ")
-			print(entradaRed)
-			entrada = (numpy.array(entradaRed)).transpose()
+			entradaAux=[entradaRed]
+			print(entradaAux)
+			entrada = numpy.array(entradaAux).transpose()
 			print("Entrada traspuesta: ")
 			print(entrada)
-			salida = pyrenn.NNOut(entrada,redNeuronalRecurrente)
+			salida = pyrenn.NNOut(entrada,redNeuronalRecurrente)[0]
 			print("Salida de la red")
 			print(salida)
 			return salida
